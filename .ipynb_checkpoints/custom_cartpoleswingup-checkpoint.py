@@ -45,13 +45,13 @@ class Objective(object):
 
     def ldx(self, x_t):
         theta, x, theta_dot, x_dot = x_t.copy()
-        theta = wrap2pi(theta)
+#         theta = wrap2pi(theta)
         ldx = np.zeros(x_t.shape)
-        ldx[0] = 2.0 * 200. * theta
-        ldx[1] = 10. * x **3
+        ldx[0] = 2.* 200. * np.sin(theta)
+        ldx[1] = 20. * x **3
         ldx[2] = 0.1*theta_dot
         ldx[3] = 2.0*50. * x_dot
-        return ldx
+        return ldx/100.0
 
     def ldu(self, u):
         return np.array([0.2*u[0]])
@@ -65,7 +65,7 @@ class CartPoleSwingUpEnv(gym.Env):
     def __init__(self):
         self.dt = 0.02
         self.g = 9.81
-        self.l = 1.0
+        self.l = 0.6
         
         self.action_space = spaces.Box(-1.0, 1.0, shape=(1,))
         self.observation_space = spaces.Box(-np.inf, np.inf, shape=(4,))
@@ -98,6 +98,7 @@ class CartPoleSwingUpEnv(gym.Env):
         return B*self.dt
     
     def step(self, u):
+        u = np.clip(u, -10,10)
         theta, x, theta_dot, x_dot = self.state
         xdot = np.array([
             theta_dot,
