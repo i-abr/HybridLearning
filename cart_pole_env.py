@@ -43,7 +43,7 @@ class Objective(object):
 
     def l(self, x, u):
         """ Going to assume that the state is...
-            x, xdot, theta, thetadot 
+            x, xdot, theta, thetadot
         """
         c = np.cos(x[2])
         s = np.sin(x[2])
@@ -52,7 +52,7 @@ class Objective(object):
     def m(self, x):
         return 0.0
     """
-    Here we define the derivatives for the task 
+    Here we define the derivatives for the task
     """
 #     def ldx(self, x):
 #         c = np.cos(x[2])
@@ -147,13 +147,13 @@ class CartPoleSwingUpEnv(gym.Env):
         # thetadot_update = (-3*self.m_p_l*(theta_dot**2)*s*c + 6*self.total_m*self.g*s + 6*(action - self.b*x_dot)*c)/(4*self.l*self.total_m - 3*self.m_p_l*c**2)
         x = x + x_dot*self.dt
         theta = theta + theta_dot*self.dt
-        
+
         thetadot_update = self.g * s /self.l + action * c/self.l - self.b*theta_dot
         x_dot = x_dot + (action - self.b*x_dot) * self.dt
 
 
         theta_dot = theta_dot + thetadot_update*self.dt
-        
+
         self.state = (x,x_dot,theta,theta_dot)
 
         self.done = False
@@ -176,7 +176,7 @@ class CartPoleSwingUpEnv(gym.Env):
         # obs = np.array([x,x_dot, np.cos(theta), np.sin(theta), theta_dot])
         obs = self.get_obs()
 
-        return obs#, reward, done, {}
+        return obs, reward, done, {}
 
     def reset(self):
         self.last_u = 0.

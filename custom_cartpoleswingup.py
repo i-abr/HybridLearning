@@ -29,18 +29,20 @@ class Objective(object):
     """
     def __init__(self):
         pass
-    def l(self, x, u):
+    def l(self, x_t, u):
         """ Going to assume that the state is...
-            x, xdot, theta, thetadot 
+            theta, x, theta_dot, x_dot
         """
-        c = np.cos(x[2])
-        s = np.sin(x[2])
-        return 100.*(x[0]**2+(1.-c)**2)+0.1*(s**2+x[3]**2+x[1]**2+u[0]**2)
+        theta, x, theta_dot, x_dot = x_t.copy()
 
+        c = np.cos(theta)
+        s = np.sin(theta)
+        cost = 400. * (1.-c) + 5.*(x**4) + 0.05 * theta_dot**2 + 50. * x_dot**2
+        return -cost/100.0 - u[0]**2
     def m(self, x):
         return 0.0
     """
-    Here we define the derivatives for the task 
+    Here we define the derivatives for the task
     """
 
     def ldx(self, x_t):
@@ -66,7 +68,7 @@ class CartPoleSwingUpEnv(gym.Env):
         self.dt = 0.02
         self.g = 9.81
         self.l = 0.6
-        
+
         self.action_space = spaces.Box(-1.0, 1.0, shape=(1,))
         self.observation_space = spaces.Box(-np.inf, np.inf, shape=(4,))
         self.task = Objective()
@@ -79,7 +81,7 @@ class CartPoleSwingUpEnv(gym.Env):
     @property
     def B(self):
         return self._B.copy()
-        
+
     def fdx(self, x, u):
         A = np.array([
             [0., 0., 1., 0.],
@@ -94,11 +96,11 @@ class CartPoleSwingUpEnv(gym.Env):
             [0.],
             [cos(x[0])/self.l],
             [1.]
-        ])
+        ]) / 10.0
         return B*self.dt
-    
+
     def step(self, u):
-        u = np.clip(u, -10,10)
+        u = np.clip(u.copy(), -1.,1.)*10.
         theta, x, theta_dot, x_dot = self.state
         xdot = np.array([
             theta_dot,
@@ -108,15 +110,24 @@ class CartPoleSwingUpEnv(gym.Env):
         ])
         self._A = self.fdx(self.state, u)
         self._B = self.fdu(self.state, u)
+
+        rew = self.task.l(self.state, u)
+
         self.state = self.state + xdot*self.dt
-        return self.state.copy()
-    
+        done = False
+        added_cost = 0.
+        if np.abs(x) > self.x_threshold:
+            done = True
+            added_cost = -200.
+
+        return self.state.copy(), rew+added_cost, done, {}
+
     def set_state(self, x):
         self.state = np.array(x.copy())#, dtype=np.float32)
         return self.state.copy()
-    
+
     def reset(self, x=None):
-        
+
         if x is None:
             self.state = np.random.normal(loc=np.array([np.pi, 0.0, 0.0, 0.0]), scale=0.2)
         else:
