@@ -17,10 +17,10 @@ class PolicyNetwork(nn.Module):
     def forward(self, state):
         x = F.relu(self.linear1(state))
         x = F.relu(self.linear2(x))
-        x = F.tanh(self.linear3(x))
+        x = torch.tanh(self.linear3(x))
         return x
 
     def get_action(self, state):
-        state  = torch.FloatTensor(state).unsqueeze(0).to(device)
+        state  = torch.FloatTensor(state).unsqueeze(0)
         action = self.forward(state)
-        return action.detach().cpu().numpy()[0, 0]
+        return action.detach().cpu().numpy()[0]
