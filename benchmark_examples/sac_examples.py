@@ -3,6 +3,7 @@ import pickle
 import gym
 
 import sys
+import os
 
 sys.path.append('../')
 
@@ -65,11 +66,11 @@ if __name__ == '__main__':
                         frame_idx, max_frames, rewards[-1]
                     )
                 )
-                pickle.dump(rewards,
-                    open('rew_data_2.pkl'.format(frame_idx), 'wb')
-                )
-
-                torch.save(policy_net.state_dict(), 'policy_2.pkl'.format(frame_idx))
+                path = './data/pend_swingup/'
+                if os.path.exists(path) is False:
+                    os.mkdir(path)
+                pickle.dump(rewards, open(path + 'reward_data.pkl', 'wb'))
+                torch.save(policy_net.state_dict(), path + 'policy.pt')
 
             if done:
                 break

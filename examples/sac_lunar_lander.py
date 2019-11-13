@@ -21,7 +21,7 @@ from model_learning import ModelOptim, Model
 
 if __name__ == '__main__':
 
-    env = NormalizedActions(gym.make("Pendulum-v0"))
+    env = NormalizedActions(gym.make("LunarLanderContinuous-v2"))
 
     action_dim = env.action_space.shape[0]
     state_dim  = env.observation_space.shape[0]
@@ -29,20 +29,20 @@ if __name__ == '__main__':
 
     policy_net = PolicyNetwork(state_dim, action_dim, hidden_dim)
 
-    model = Model(state_dim, action_dim)
+    model = Model(state_dim, action_dim, def_layers=[128, 64])
 
     planner = MPPI(model, policy_net)
 
     replay_buffer_size = 1000000
     replay_buffer = ReplayBuffer(replay_buffer_size)
 
-    model_optim = ModelOptim(model, replay_buffer, lr=1e-2)
+    model_optim = ModelOptim(model, replay_buffer, lr=1e-3)
     sac = SoftActorCritic(policy=policy_net,
                           state_dim=state_dim,
                           action_dim=action_dim,
                           replay_buffer=replay_buffer)
 
-    max_frames  = 40000
+    max_frames  = 20000
     max_steps   = 500
     frame_idx   = 0
     rewards     = []
@@ -74,11 +74,11 @@ if __name__ == '__main__':
                     )
                 )
 
-                path = './data/pend_swingup/'
+                path = './data/lunar_lander/'
                 if os.path.exists(path) is False:
                     os.mkdir(path)
-                pickle.dump(rewards, open(path + 'reward_data2.pkl', 'wb'))
-                torch.save(policy_net.state_dict(), path + 'policy2.pt')
+                pickle.dump(rewards, open(path + 'reward_data.pkl', 'wb'))
+                torch.save(policy_net.state_dict(), path + 'policy.pt')
 
             if done:
                 break
