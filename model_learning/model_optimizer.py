@@ -33,7 +33,7 @@ class ModelOptim(object):
             pred_next_state_dist, pred_rewards = self.model(states, actions)
 
             rew_loss = torch.mean(torch.pow(pred_rewards - rewards,2))
-            model_loss = -torch.mean(pred_next_state_dist.log_prob(next_states))
+            model_loss = -torch.mean(pred_next_state_dist.log_prob(next_states)) - 1e-3*pred_next_state_dist.entropy().mean()
 
             loss = 0.5 * rew_loss + model_loss
 
@@ -41,4 +41,4 @@ class ModelOptim(object):
             loss.backward()
             self.model_optimizer.step()
 
-            self.log['loss'].append(loss.item())
+        self.log['loss'].append(loss.item())

@@ -24,12 +24,21 @@ class Model(nn.Module):
             setattr(self, var, nn.Linear(insize, outsize))
             self.n_params.append(i)
 
+
+
         layers = [num_states + num_actions] + def_layers + [1]
         for i, (insize, outsize) in enumerate(zip(layers[:-1], layers[1:])):
             var = 'rew_layer' + str(i)
             setattr(self, var, nn.Linear(insize, outsize))
 
-        self.log_std = nn.Parameter(torch.ones(1, num_states) * std)
+        # self.log_std = nn.Parameter(torch.ones(1, num_states) * std)
+
+        self.log_std = nn.Sequential(
+            nn.Linear(def_layers[-1], def_layers[-1]),
+            nn.ReLU(),
+            nn.Linear(def_layers[-1], num_states)
+        )
+
 
     def forward(self, s, a):
         """
@@ -49,13 +58,16 @@ class Model(nn.Module):
             rew = F.relu(rew)
             # rew = torch.sin(rew)
 
+        std = torch.clamp(self.log_std(x), -20., 2.).exp()
+
         w = getattr(self, 'layer' + str(self.n_params[-1]))
         x = w(x)
 
         w = getattr(self, 'rew_layer' + str(self.n_params[-1]))
         rew = w(rew)
 
-        std = self.log_std.exp().expand_as(x)
+        # std = self.log_std.exp().expand_as(x)
+
         dist = Normal(s+x, std)
 
         return dist, rew

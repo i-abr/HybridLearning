@@ -5,7 +5,7 @@ class MPPI(object):
 
 
     def __init__(self, model, policy,
-                    samples = 10, t_H=10, lam=0.1, noise=0.1):
+                    samples=10, t_H=10, lam=0.1):
 
         self.model          = model
         self.policy         = policy
@@ -32,14 +32,14 @@ class MPPI(object):
             da = []
             log_prob = []
             for t in range(self.t_H):
-                pi = Normal(mu, log_std.exp()) 
+                pi = Normal(mu, log_std.exp())
                 v = pi.sample()
                 log_prob.append(pi.log_prob(self.a[t]).sum(1))
                 da.append(v - self.a[t])
                 s_dist, rew = self.model(s, v)
                 s = s_dist.mean
                 mu, log_std = self.policy(s)
-                self.sk[:,t] = -rew.squeeze() #+ torch.pow(da[-1], 2).sum(1)
+                self.sk[:,t] = -rew.squeeze()#+ torch.pow(da[-1], 2).sum(1)
 
             self.sk = torch.cumsum(self.sk.flip(1), 1).flip(1)
             # self.sk -= torch.min(self.sk, 1)[0].unsqueeze(1)

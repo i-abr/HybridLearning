@@ -51,6 +51,7 @@ if __name__ == '__main__':
 
     while frame_idx < max_frames:
         state = env.reset()
+        planner.reset()
         episode_reward = 0
 
         for step in range(max_steps):
@@ -60,6 +61,7 @@ if __name__ == '__main__':
             replay_buffer.push(state, action, reward, next_state, done)
             if len(replay_buffer) > batch_size:
                 sac.soft_q_update(batch_size)
+                model_optim.update_model(batch_size, mini_iter=1)
 
             state = next_state
             episode_reward += reward
@@ -69,8 +71,8 @@ if __name__ == '__main__':
 
             if frame_idx % 1000 == 0:
                 print(
-                    'frame : {}/{}, \t last rew : {}'.format(
-                        frame_idx, max_frames, rewards[-1]
+                    'frame : {}/{}, \t last rew : {}, \t model loss : {}'.format(
+                        frame_idx, max_frames, rewards[-1], model_optim.log['loss'][-1]
                     )
                 )
 
@@ -82,6 +84,6 @@ if __name__ == '__main__':
 
             if done:
                 break
-        if len(replay_buffer) > 128:
-            model_optim.update_model(128, mini_iter=10)
+        # if len(replay_buffer) > 128:
+        #     model_optim.update_model(128, mini_iter=10)
         rewards.append(episode_reward)
