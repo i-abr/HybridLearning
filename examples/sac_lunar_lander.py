@@ -93,8 +93,8 @@ if __name__ == '__main__':
                 path = './data/lunar_lander/'
                 if os.path.exists(path) is False:
                     os.mkdir(path)
-                pickle.dump(rewards, open(path + 'reward_data.pkl', 'wb'))
-                torch.save(policy_net.state_dict(), path + 'policy.pt')
+                pickle.dump(rewards, open(path + 'reward_data2.pkl', 'wb'))
+                torch.save(policy_net.state_dict(), path + 'policy2.pt')
 
             if done:
                 break
@@ -107,5 +107,5 @@ if __name__ == '__main__':
         path = './data/lunar_lander/'
         if os.path.exists(path) is False:
             os.mkdir(path)
-        pickle.dump(rewards, open(path + 'reward_data.pkl', 'wb'))
-        torch.save(policy_net.state_dict(), path + 'policy.pt')
+        pickle.dump(rewards, open(path + 'reward_data2.pkl', 'wb'))
+        torch.save(policy_net.state_dict(), path + 'policy2.pt')
