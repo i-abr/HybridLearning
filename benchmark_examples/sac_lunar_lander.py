@@ -14,6 +14,19 @@ from sac import PolicyNetwork
 from sac import ReplayBuffer
 from sac import NormalizedActions
 
+from gym.envs.box2d.lunar_lander import heuristic as expert
+
+def get_expert_data(env, replay_buffer, T=200):
+    state = env.reset()
+    for t in range(T):
+        action = expert(env, state)
+        next_state, reward, done, info = env.step(action)
+        replay_buffer.push(state, action, reward, next_state, done)
+
+        state = next_state
+
+        if done:
+            break
 
 # TODO: add arg parse
 
@@ -33,14 +46,16 @@ if __name__ == '__main__':
     sac = SoftActorCritic(policy=policy_net,
                           state_dim=state_dim,
                           action_dim=action_dim,
-                          replay_buffer=replay_buffer)
+                          replay_buffer=replay_buffer, policy_lr = 3e-3)
 
-    max_frames  = 40000
-    max_steps   = 500
+    max_frames  = 10000
+    max_steps   = 200
     frame_idx   = 0
     rewards     = []
     batch_size  = 128
 
+    # for _ in range(5):
+    #     get_expert_data(env, replay_buffer)
 
     while frame_idx < max_frames:
         state = env.reset()
@@ -60,7 +75,7 @@ if __name__ == '__main__':
 
             #env.render()
 
-            if frame_idx % 1000 == 0:
+            if frame_idx % 200 == 0:
                 print(
                     'frame : {}/{}, \t last rew : {}'.format(
                         frame_idx, max_frames, rewards[-1]
@@ -69,15 +84,15 @@ if __name__ == '__main__':
                 path = './data/lunar_lander/'
                 if os.path.exists(path) is False:
                     os.mkdir(path)
-                pickle.dump(rewards, open(path + 'reward_data3.pkl', 'wb'))
-                torch.save(policy_net.state_dict(), path + 'policy3.pt')
+                pickle.dump(rewards, open(path + 'reward_data4.pkl', 'wb'))
+                torch.save(policy_net.state_dict(), path + 'policy4.pt')
 
             if done:
                 break
 
         rewards.append(episode_reward)
-        path = './data/lunar_lander/'
-        if os.path.exists(path) is False:
-            os.mkdir(path)
-        pickle.dump(rewards, open(path + 'reward_data3.pkl', 'wb'))
-        torch.save(policy_net.state_dict(), path + 'policy3.pt')
+    path = './data/lunar_lander/'
+    if os.path.exists(path) is False:
+        os.mkdir(path)
+    pickle.dump(rewards, open(path + 'reward_data4.pkl', 'wb'))
+    torch.save(policy_net.state_dict(), path + 'policy4.pt')

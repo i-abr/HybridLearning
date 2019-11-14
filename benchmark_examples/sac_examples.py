@@ -69,8 +69,8 @@ if __name__ == '__main__':
                 path = './data/pend_swingup/'
                 if os.path.exists(path) is False:
                     os.mkdir(path)
-                pickle.dump(rewards, open(path + 'reward_data.pkl', 'wb'))
-                torch.save(policy_net.state_dict(), path + 'policy.pt')
+                pickle.dump(rewards, open(path + 'reward_data2.pkl', 'wb'))
+                torch.save(policy_net.state_dict(), path + 'policy2.pt')
 
             if done:
                 break

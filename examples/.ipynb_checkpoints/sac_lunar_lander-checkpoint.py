@@ -17,11 +17,22 @@ from mppi import MPPI
 from model_learning import ModelOptim, Model
 
 
-# TODO: add arg parse
+def test_with_planner(env, planner, max_steps=500):
+        state = env.reset()
+        planner.reset()
+        episode_reward = 0
+        for step in range(max_steps):
+            action = planner(state)
+            next_state, reward, done, _ = env.step(action)
+            state = next_state
+            episode_reward += reward
+            if done:
+                break
+        return episode_reward
 
 if __name__ == '__main__':
 
-    env = NormalizedActions(gym.make("Pendulum-v0"))
+    env = gym.make("LunarLanderContinuous-v2")
 
     action_dim = env.action_space.shape[0]
     state_dim  = env.observation_space.shape[0]
@@ -29,14 +40,14 @@ if __name__ == '__main__':
 
     policy_net = PolicyNetwork(state_dim, action_dim, hidden_dim)
 
-    model = Model(state_dim, action_dim)
+    model = Model(state_dim, action_dim, def_layers=[200, 200])
 
-    planner = MPPI(model, policy_net)
+    planner = MPPI(model, policy_net, samples=10, t_H=20, lam=0.1)
 
     replay_buffer_size = 1000000
     replay_buffer = ReplayBuffer(replay_buffer_size)
 
-    model_optim = ModelOptim(model, replay_buffer, lr=1e-2)
+    model_optim = ModelOptim(model, replay_buffer, lr=1e-3)
     sac = SoftActorCritic(policy=policy_net,
                           state_dim=state_dim,
                           action_dim=action_dim,
@@ -56,6 +67,8 @@ if __name__ == '__main__':
 
         for step in range(max_steps):
             action = planner(state)
+            # action = policy_net.get_action(state)
+
             next_state, reward, done, _ = env.step(action)
 
             replay_buffer.push(state, action, reward, next_state, done)
@@ -69,6 +82,7 @@ if __name__ == '__main__':
 
             #env.render()
 
+
             if frame_idx % 1000 == 0:
                 print(
                     'frame : {}/{}, \t last rew : {}, \t model loss : {}'.format(
@@ -76,14 +90,22 @@ if __name__ == '__main__':
                     )
                 )
 
-                path = './data/pend_swingup/'
+                path = './data/lunar_lander/'
                 if os.path.exists(path) is False:
                     os.mkdir(path)
-                pickle.dump(rewards, open(path + 'reward_data3.pkl', 'wb'))
-                torch.save(policy_net.state_dict(), path + 'policy3.pt')
+                pickle.dump(rewards, open(path + 'reward_data2.pkl', 'wb'))
+                torch.save(policy_net.state_dict(), path + 'policy2.pt')
 
             if done:
                 break
-        # if len(replay_buffer) > 128:
-        #     model_optim.update_model(128, mini_iter=10)
+        # if len(replay_buffer) > 64:
+        #     model_optim.update_model(64, mini_iter=10)
+        # rewards.append(episode_reward)
+        # rewards.append(test_with_planner(env, planner, max_steps))
         rewards.append(episode_reward)
+
+        path = './data/lunar_lander/'
+        if os.path.exists(path) is False:
+            os.mkdir(path)
+        pickle.dump(rewards, open(path + 'reward_data2.pkl', 'wb'))
+        torch.save(policy_net.state_dict(), path + 'policy2.pt')
