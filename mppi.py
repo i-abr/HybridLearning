@@ -47,8 +47,9 @@ class MPPI(object):
             for t in range(self.t_H):
                 sk = self.sk[:, t]
                 sk -= torch.min(sk)
-
-                w = torch.exp(-sk.div(self.lam) + log_prob[t]) + 1e-5
+                log_prob_t = log_prob[t]
+                log_prob_t -= torch.max(log_prob[t])
+                w = torch.exp(-sk.div(self.lam) + log_prob_t) + 1e-5
                 w.div_(w.sum(0))
                 self.a[t] = self.a[t] + w.unsqueeze(1).t().mm(da[t])
             return self.a[0].data.numpy()[0]
