@@ -1,7 +1,7 @@
 import torch
 from torch.distributions import Normal
 
-class MPPI(object):
+class PathIntegral(object):
 
 
     def __init__(self, model, policy,

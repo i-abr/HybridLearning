@@ -6,7 +6,7 @@ import torch.nn.functional as F
 from torch.distributions import Normal
 
 
-class ModelOptim(object):
+class ModelOptimizer(object):
 
     def __init__(self, model, replay_buffer, lr=1e-2):
 

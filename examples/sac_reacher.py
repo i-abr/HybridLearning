@@ -1,9 +1,11 @@
 import numpy as np
 import pickle
-import gym
+# import gym
 
 # from pybullet_envs.bullet.kukaGymEnv import KukaGymEnv
 import pybullet_envs
+
+print(pybullet_envs.getList())
 
 import sys
 import os
@@ -48,12 +50,13 @@ def test_with_planner(env, planner, max_steps=200):
 if __name__ == '__main__':
 
     # env_name = 'KukaBulletEnv-v0'
-    # env_name = 'InvertedPendulumSwingupBulletEnv-v0'
-    env_name = 'PusherBulletEnv-v0'
+    env_name = 'InvertedPendulumSwingupBulletEnv-v0'
+    # env_name = 'ReacherBulletEnv-v0'
+    # env_name = 'HalfCheetahBulletEnv-v0'
     env = pybullet_envs.make(env_name)
-    env.
-
+    # env.isRender = True
     # env = KukaGymEnv(renders=True, isDiscrete=False)
+    # env.camera_adjust()
     env.reset()
 
     path = './data/' + env_name +  '/'
@@ -109,7 +112,7 @@ if __name__ == '__main__':
             episode_reward += reward
             frame_idx += 1
 
-            env.render()
+            env.render("human")
 
 
             if frame_idx % 500 == 0:
