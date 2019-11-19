@@ -1,17 +1,14 @@
 import numpy as np
 import pickle
-# import gym
-
-# from pybullet_envs.bullet.kukaGymEnv import KukaGymEnv
-import pybullet_envs
-
-print(pybullet_envs.getList())
+from datetime import datetime
 
 import sys
 import os
 sys.path.append('../')
 
 # local imports
+import envs
+
 import torch
 from sac import SoftActorCritic
 from sac import PolicyNetwork
@@ -24,8 +21,15 @@ from model import ModelOptimizer, Model
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument('env', '--env', help='choose from env list : ' + envs.getlist())
-parser.add_argument('')
+parser.add_argument('--env',        type=str,   help=envs.getlist())
+parser.add_argument('--render',     type=bool,  default=True)
+parser.add_argument('--max_steps',  type=int,   default=200)
+parser.add_argument('--max_frames', type=int,   default=10000)
+parser.add_argument('--frame_skip', type=int,   default=2)
+parser.add_argument('--model_lr',   type=float, default=1e-3)
+
+args = parser.parse_args()
+
 
 def get_expert_data(env, replay_buffer, T=200):
     state = env.reset()
@@ -55,16 +59,23 @@ def test_with_planner(env, planner, max_steps=200):
 if __name__ == '__main__':
 
     # env_name = 'KukaBulletEnv-v0'
-    env_name = 'InvertedPendulumSwingupBulletEnv-v0'
+    # env_name = 'InvertedPendulumSwingupBulletEnv-v0'
     # env_name = 'ReacherBulletEnv-v0'
     # env_name = 'HalfCheetahBulletEnv-v0'
-    env = pybullet_envs.make(env_name)
+    # env = pybullet_envs.make(env_name)
     # env.isRender = True
     # env = KukaGymEnv(renders=True, isDiscrete=False)
     # env.camera_adjust()
+
+
+    env_name = args.env
+    env = envs.env_list[env_name]()
     env.reset()
 
-    path = './data/' + env_name +  '/'
+    now = datetime.now()
+    date_str = now.strftime("%Y-%m-%d_%H-%M-%S/")
+
+    path = './data/' + env_name +  '/' + date_str
     if os.path.exists(path) is False:
         os.mkdir(path)
 
@@ -81,22 +92,20 @@ if __name__ == '__main__':
     replay_buffer_size = 1000000
     replay_buffer = ReplayBuffer(replay_buffer_size)
 
-    model_optim = ModelOptimizer(model, replay_buffer, lr=1e-3)
+    model_optim = ModelOptimizer(model, replay_buffer, lr=args.model_lr)
     sac = SoftActorCritic(policy=policy_net,
                           state_dim=state_dim,
                           action_dim=action_dim,
                           replay_buffer=replay_buffer, policy_lr = 3e-3)
 
-    max_frames  = 40000
-    max_steps   = 400
+    max_frames  = args.max_frames
+    max_steps   = args.max_steps
+    frame_skip = args.frame_skip
+
     frame_idx   = 0
     rewards     = []
     batch_size  = 128
 
-    # for _ in range(5):
-    #     get_expert_data(env, replay_buffer)
-    frame_skip = 5
-    print(env.action_space.low, env.action_space.high)
     while frame_idx < max_frames:
         state = env.reset()
         planner.reset()
@@ -117,18 +126,19 @@ if __name__ == '__main__':
             episode_reward += reward
             frame_idx += 1
 
-            env.render("human")
+            if args.render:
+                env.render("human")
 
 
-            if frame_idx % 500 == 0:
+            if frame_idx % int(max_frames/10) == 0:
                 print(
                     'frame : {}/{}, \t last rew : {}, \t model loss : {}'.format(
                         frame_idx, max_frames, rewards[-1], model_optim.log['loss'][-1]
                     )
                 )
 
-                pickle.dump(rewards, open(path + 'reward_data.pkl', 'wb'))
-                torch.save(policy_net.state_dict(), path + 'policy.pt')
+                pickle.dump(rewards, open(path + 'reward_data' + '.pkl', 'wb'))
+                torch.save(policy_net.state_dict(), path + 'policy_' + str(frame_idx) + '.pt')
 
             if done:
                 break
@@ -138,8 +148,6 @@ if __name__ == '__main__':
         # rewards.append(test_with_planner(env, planner, max_steps))
         rewards.append(episode_reward)
 
-    path = './data/' + env_name +  '/'
-    if os.path.exists(path) is False:
-        os.mkdir(path)
-    pickle.dump(rewards, open(path + 'reward_data.pkl', 'wb'))
-    torch.save(policy_net.state_dict(), path + 'policy.pt')
+    print('saving final data set')
+    pickle.dump(rewards, open(path + 'reward_data'+ '.pkl', 'wb'))
+    torch.save(policy_net.state_dict(), path + 'policy_' + 'final' + '.pt')
