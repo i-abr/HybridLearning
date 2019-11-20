@@ -9,7 +9,7 @@ env_list = {
     'ReacherBulletEnv' : gym_manipulator_envs.ReacherBulletEnv,
     'StrikerBulletEnv' : gym_manipulator_envs.StrikerBulletEnv,
     'PendulumEnv' : classic_control.PendulumEnv,
-    'LunarLanderContinuous' : box2d.LunarLanderContinuous
+    'LunarLanderContinuousEnv' : box2d.LunarLanderContinuous
 }
 
 def getlist():

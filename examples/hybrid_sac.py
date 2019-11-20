@@ -22,7 +22,7 @@ import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--env',        type=str,   help=envs.getlist())
-parser.add_argument('--render',     type=bool,  default=True)
+parser.add_argument('--render',     type=bool,  default=False)
 parser.add_argument('--max_steps',  type=int,   default=200)
 parser.add_argument('--max_frames', type=int,   default=10000)
 parser.add_argument('--frame_skip', type=int,   default=2)
@@ -72,12 +72,13 @@ if __name__ == '__main__':
     env = envs.env_list[env_name]()
     env.reset()
 
+
     now = datetime.now()
     date_str = now.strftime("%Y-%m-%d_%H-%M-%S/")
 
     path = './data/' + env_name +  '/' + date_str
     if os.path.exists(path) is False:
-        os.mkdir(path)
+        os.makedirs(path)
 
     action_dim = env.action_space.shape[0]
     state_dim  = env.observation_space.shape[0]
