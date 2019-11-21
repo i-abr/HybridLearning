@@ -27,6 +27,12 @@ parser.add_argument('--max_steps',  type=int,   default=200)
 parser.add_argument('--max_frames', type=int,   default=10000)
 parser.add_argument('--frame_skip', type=int,   default=2)
 parser.add_argument('--model_lr',   type=float, default=1e-3)
+parser.add_argument('--policy_lr',  type=float, default=3e-3)
+parser.add_argument('--value_lr',   type=float, default=3e-4)
+parser.add_argument('--soft_q_lr',  type=float, default=3e-4)
+
+parser.add_argument('--horizon', type=int, default=5)
+parser.add_argument('--model_iter', type=int, default=2)
 
 args = parser.parse_args()
 
@@ -69,8 +75,14 @@ if __name__ == '__main__':
 
 
     env_name = args.env
-    env = envs.env_list[env_name]()
+    try:
+        env = envs.env_list[env_name](render=args.render)
+    except TypeError as err:
+        print('no argument render,  assumping env.render will just work')
+        env = envs.env_list[env_name]()
     env.reset()
+    print(env.action_space.low, env.action_space.high)
+    assert np.any(np.abs(env.action_space.low) <= 1.) and  np.any(np.abs(env.action_space.high) <= 1.), 'Action space not normalizd'
 
 
     now = datetime.now()
@@ -88,7 +100,7 @@ if __name__ == '__main__':
 
     model = Model(state_dim, action_dim, def_layers=[200, 200])
 
-    planner = PathIntegral(model, policy_net, samples=20, t_H=5, lam=0.1)
+    planner = PathIntegral(model, policy_net, samples=20, t_H=args.horizon, lam=0.1)
 
     replay_buffer_size = 1000000
     replay_buffer = ReplayBuffer(replay_buffer_size)
@@ -97,7 +109,11 @@ if __name__ == '__main__':
     sac = SoftActorCritic(policy=policy_net,
                           state_dim=state_dim,
                           action_dim=action_dim,
-                          replay_buffer=replay_buffer, policy_lr = 3e-3)
+                          replay_buffer=replay_buffer,
+                          policy_lr=args.policy_lr,
+                          value_lr=args.value_lr,
+                          soft_q_lr=args.soft_q_lr)
+
 
     max_frames  = args.max_frames
     max_steps   = args.max_steps
@@ -121,7 +137,7 @@ if __name__ == '__main__':
             replay_buffer.push(state, action, reward, next_state, done)
             if len(replay_buffer) > batch_size:
                 sac.soft_q_update(batch_size)
-                model_optim.update_model(batch_size, mini_iter=2)
+                model_optim.update_model(batch_size, mini_iter=args.model_iter)
 
             state = next_state
             episode_reward += reward
@@ -134,7 +150,7 @@ if __name__ == '__main__':
             if frame_idx % int(max_frames/10) == 0:
                 print(
                     'frame : {}/{}, \t last rew : {}, \t model loss : {}'.format(
-                        frame_idx, max_frames, rewards[-1], model_optim.log['loss'][-1]
+                        frame_idx, max_frames, rewards[-1][1], model_optim.log['loss'][-1]
                     )
                 )
 
@@ -147,7 +163,7 @@ if __name__ == '__main__':
         #     model_optim.update_model(64, mini_iter=10)
         # rewards.append(episode_reward)
         # rewards.append(test_with_planner(env, planner, max_steps))
-        rewards.append(episode_reward)
+        rewards.append([frame_idx, episode_reward])
 
     print('saving final data set')
     pickle.dump(rewards, open(path + 'reward_data'+ '.pkl', 'wb'))
