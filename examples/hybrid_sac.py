@@ -16,7 +16,7 @@ from sac import ReplayBuffer
 from sac import NormalizedActions
 from hybrid_stochastic import PathIntegral
 from model import ModelOptimizer, Model
-
+from model import MDNModelOptimizer, MDNModel
 # argparse things
 import argparse
 
@@ -33,6 +33,7 @@ parser.add_argument('--soft_q_lr',  type=float, default=3e-4)
 
 parser.add_argument('--horizon', type=int, default=5)
 parser.add_argument('--model_iter', type=int, default=2)
+parser.add_argument('--trajectory_samples', type=int, default=20)
 
 args = parser.parse_args()
 
@@ -71,7 +72,6 @@ if __name__ == '__main__':
     # env = pybullet_envs.make(env_name)
     # env.isRender = True
     # env = KukaGymEnv(renders=True, isDiscrete=False)
-    # env.camera_adjust()
 
 
     env_name = args.env
@@ -98,14 +98,19 @@ if __name__ == '__main__':
 
     policy_net = PolicyNetwork(state_dim, action_dim, hidden_dim)
 
-    model = Model(state_dim, action_dim, def_layers=[200, 200])
+    # model = Model(state_dim, action_dim, def_layers=[200, 200])
+    model = MDNModel(state_dim, action_dim, def_layers=[200, 200])
 
-    planner = PathIntegral(model, policy_net, samples=20, t_H=args.horizon, lam=0.1)
+    planner = PathIntegral(model, policy_net, samples=args.trajectory_samples, t_H=args.horizon, lam=0.1)
 
     replay_buffer_size = 1000000
     replay_buffer = ReplayBuffer(replay_buffer_size)
 
-    model_optim = ModelOptimizer(model, replay_buffer, lr=args.model_lr)
+    # model_optim = ModelOptimizer(model, replay_buffer, lr=args.model_lr)
+
+    model_optim = MDNModelOptimizer(model, replay_buffer, lr=args.model_lr)
+
+
     sac = SoftActorCritic(policy=policy_net,
                           state_dim=state_dim,
                           action_dim=action_dim,
@@ -123,11 +128,12 @@ if __name__ == '__main__':
     rewards     = []
     batch_size  = 128
 
+    # env.camera_adjust()
+
     while frame_idx < max_frames:
         state = env.reset()
         planner.reset()
         episode_reward = 0
-
         for step in range(max_steps):
             action = planner(state)
             # action = policy_net.get_action(state)

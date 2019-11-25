@@ -36,8 +36,7 @@ class PathIntegral(object):
                 v = pi.sample()
                 log_prob.append(pi.log_prob(self.a[t].expand_as(v)).sum(1))
                 da.append(v - self.a[t])
-                s_dist, rew = self.model(s, v)
-                s = s_dist.mean
+                s, rew = self.model.step(s, v)
                 mu, log_std = self.policy(s)
                 self.sk[:,t] = -rew.squeeze()#+ torch.pow(da[-1], 2).sum(1)
 

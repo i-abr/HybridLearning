@@ -7,7 +7,6 @@ env_list = {
     'HopperBulletEnv' : gym_locomotion_envs.HopperBulletEnv,
     'AntBulletEnv' : gym_locomotion_envs.AntBulletEnv,
     'ReacherBulletEnv' : gym_manipulator_envs.ReacherBulletEnv,
-    'StrikerBulletEnv' : gym_manipulator_envs.StrikerBulletEnv,
     'PendulumEnv' : classic_control.PendulumEnv,
     'LunarLanderContinuousEnv' : box2d.LunarLanderContinuous
 }

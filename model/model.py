@@ -71,3 +71,7 @@ class Model(nn.Module):
         dist = Normal(s+x, std)
 
         return dist, rew
+
+    def step(self, x, u):
+        dist, rew = self.forward(x, u)
+        return dist.mean, rew
