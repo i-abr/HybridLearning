@@ -1,3 +1,5 @@
+import torch
+import numpy as np
 
 
 class DeterministicCtrl(object):
@@ -19,7 +21,9 @@ class DeterministicCtrl(object):
         reward = []
         for t in range(self.T):
             x.append(x_t.clone())
-            x_t, rew = self.model(x_t, self.u[t])
+            x_t, rew = self.model.step(x_t, self.u[t])
             reward.append(rew)
 
+        # stack the inputs and pass through model again
+        x_var = torch.cat(x, requires_grad=True)
         df = compute_jacobian(torch.cat(x, requires_grad=True))
