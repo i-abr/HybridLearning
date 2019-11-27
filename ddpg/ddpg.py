@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 
-from valuenetwork import ValueNetwork
+from .valuenetwork import ValueNetwork
 
 
 
