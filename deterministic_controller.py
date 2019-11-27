@@ -2,6 +2,7 @@ import torch
 import torch.autograd as autograd
 from torch.autograd import Variable
 from torch.autograd.gradcheck import zero_gradients
+import torch.nn.functional as F
 
 def compute_jacobian(inputs, output, create_graph=False):
     """
@@ -60,21 +61,27 @@ class DeterministicCtrl(object):
                 u_t = self.policy(x_t)
                 x_t, r_t = self.model.step(x_t, self.u[t].unsqueeze(0) + u_t)
 
-
         # compute those derivatives
         x = torch.cat(x)
         x.requires_grad = True
         u_p = self.policy(x)
+
         pred_state, pred_rew = self.model.step(x, self.u+u_p)
-        pred_rew = pred_rew - torch.sum(torch.pow(self.u-u_p,2) * 1000., dim=1, keepdim=True)
+        pred_rew = pred_rew - torch.sum(torch.pow(self.u-u_p,2) * 10., dim=1, keepdim=True)
         dfdx = compute_jacobian(x, pred_state)
         dfdu = compute_jacobian(self.u, pred_state)
         dldx = compute_jacobian(x, pred_rew)
         dldu = compute_jacobian(self.u, pred_rew)
+        
 
         with torch.no_grad():
             rho = torch.zeros(1, self.num_states)
             for t in reversed(range(self.T-1)):
                 rho = dldx[t] + rho.mm(dfdx[t])
+                rho_norm = torch.norm(rho)
+                if rho_norm > 1.0:
+                    rho = rho/torch.norm(rho)
                 self.u[t] = torch.clamp(self.u[t] + self.eps*(dldu[t] + rho.mm(dfdu[t])), -1., 1.)
+#                 self.u[t] = self.u[t] + self.eps * (dldu[t] + rho.mm(dfdu[t]))
+                
         return self.u[0].data.numpy()
