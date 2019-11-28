@@ -67,7 +67,7 @@ class DeterministicCtrl(object):
         u_p = self.policy(x)
 
         pred_state, pred_rew = self.model.step(x, self.u+u_p)
-        pred_rew = pred_rew - torch.sum(torch.pow(self.u-u_p,2) * 10., dim=1, keepdim=True)
+        pred_rew = pred_rew - torch.sum(torch.pow(self.u,2) * 1., dim=1, keepdim=True)
         dfdx = compute_jacobian(x, pred_state)
         dfdu = compute_jacobian(self.u, pred_state)
         dldx = compute_jacobian(x, pred_rew)
@@ -84,4 +84,4 @@ class DeterministicCtrl(object):
                 self.u[t] = torch.clamp(self.u[t] + self.eps*(dldu[t] + rho.mm(dfdu[t])), -1., 1.)
 #                 self.u[t] = self.u[t] + self.eps * (dldu[t] + rho.mm(dfdu[t]))
                 
-        return self.u[0].data.numpy()
+        return (self.u[0] + u_p[0]).data.numpy()
