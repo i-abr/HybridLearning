@@ -15,8 +15,10 @@ class PolicyNetwork(nn.Module):
         self.linear3.bias.data.uniform_(-init_w, init_w)
 
     def forward(self, state):
-        x = F.relu(self.linear1(state))
-        x = F.relu(self.linear2(x))
+        # x = F.relu(self.linear1(state))
+        # x = F.relu(self.linear2(x))
+        x = torch.sin(self.linear1(state))
+        x = torch.sin(self.linear2(x))
         x = torch.tanh(self.linear3(x))
         return x
 

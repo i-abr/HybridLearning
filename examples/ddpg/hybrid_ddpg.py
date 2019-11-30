@@ -30,7 +30,7 @@ parser.add_argument('--model_lr',   type=float, default=1e-3)
 parser.add_argument('--value_lr',   type=float, default=3e-4)
 parser.add_argument('--policy_lr',  type=float, default=3e-3)
 
-parser.add_argument('--horizon', type=int, default=10)
+parser.add_argument('--horizon', type=int, default=5)
 parser.add_argument('--model_iter', type=int, default=2)
 parser.add_argument('--ctrl_weight', type=float, default=1.0)
 

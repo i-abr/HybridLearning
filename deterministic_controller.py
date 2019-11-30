@@ -72,16 +72,16 @@ class DeterministicCtrl(object):
         dfdu = compute_jacobian(self.u, pred_state)
         dldx = compute_jacobian(x, pred_rew)
         dldu = compute_jacobian(self.u, pred_rew)
-        
+
 
         with torch.no_grad():
             rho = torch.zeros(1, self.num_states)
             for t in reversed(range(self.T-1)):
                 rho = dldx[t] + rho.mm(dfdx[t])
-                rho_norm = torch.norm(rho)
-                if rho_norm > 1.0:
-                    rho = rho/torch.norm(rho)
+                # rho_norm = torch.norm(rho)
+                # if rho_norm > 1.0:
+                #     rho = rho/torch.norm(rho)
                 self.u[t] = torch.clamp(self.u[t] + self.eps*(dldu[t] + rho.mm(dfdu[t])), -1., 1.)
 #                 self.u[t] = self.u[t] + self.eps * (dldu[t] + rho.mm(dfdu[t]))
-                
+
         return (self.u[0] + u_p[0]).data.numpy()
