@@ -29,6 +29,7 @@ class ModelOptimizer(object):
             next_states = torch.FloatTensor(next_states)
             actions = torch.FloatTensor(actions)
             rewards = torch.FloatTensor(rewards).unsqueeze(1)
+            done    = torch.FloatTensor(np.float32(done)).unsqueeze(1)
 
             pred_next_state_dist, pred_rewards = self.model(states, actions)
 
@@ -66,6 +67,7 @@ class MDNModelOptimizer(object):
             next_states = torch.FloatTensor(next_states)
             actions = torch.FloatTensor(actions)
             rewards = torch.FloatTensor(rewards).unsqueeze(1)
+            done    = torch.FloatTensor(np.float32(done)).unsqueeze(1)
 
             log_probs, pred_rewards = self.model(states, actions, next_states)
 

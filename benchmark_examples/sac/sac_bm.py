@@ -6,7 +6,7 @@ from datetime import datetime
 import sys
 import os
 
-sys.path.append('../')
+sys.path.append('../../')
 
 # local imports
 import envs

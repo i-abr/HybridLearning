@@ -27,7 +27,7 @@ class PolicyNetwork(nn.Module):
         # x = F.relu(self.linear1(state))
         # x = F.relu(self.linear2(x))
         x = torch.sin(self.linear1(state))
-        x = torch.sin(self.linear2(x))
+        # x = torch.sin(self.linear2(x))
 
         mean    = self.mean_linear(x)
         log_std = self.log_std_linear(x)
