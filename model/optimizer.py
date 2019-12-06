@@ -34,7 +34,7 @@ class ModelOptimizer(object):
             pred_next_state_dist, pred_rewards = self.model(states, actions)
 
             rew_loss = torch.mean(torch.pow(pred_rewards - rewards,2))
-            model_loss = -torch.mean(pred_next_state_dist.log_prob(next_states)) - 1e-3*pred_next_state_dist.entropy().mean()
+            model_loss = -torch.sum(pred_next_state_dist.log_prob(next_states))/batch_size# - 1e-3*pred_next_state_dist.entropy().mean()
 
             loss = 0.5 * rew_loss + model_loss
 
@@ -72,7 +72,7 @@ class MDNModelOptimizer(object):
             log_probs, pred_rewards = self.model(states, actions, next_states)
 
             rew_loss = torch.mean(torch.pow(pred_rewards - rewards,2))
-            model_loss = -torch.mean(log_probs)
+            model_loss = -torch.sum(log_probs) / batch_size
 
             loss = 0.5 * rew_loss + model_loss
 
