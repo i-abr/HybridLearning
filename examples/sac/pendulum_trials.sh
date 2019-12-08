@@ -7,5 +7,6 @@ do
         --max_frames 6000 \
         --frame_skip 4 \
         --render
+        --model_lr 1e-3
     echo "trial $i out of 5"
 done
