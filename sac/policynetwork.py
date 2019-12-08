@@ -24,9 +24,8 @@ class PolicyNetwork(nn.Module):
         self.log_std_linear.bias.data.uniform_(-init_w, init_w)
 
     def forward(self, state):
-        # x = F.relu(self.linear1(state))
-        # x = F.relu(self.linear2(x))
-        x = torch.sin(self.linear1(state))
+        x = F.selu(self.linear1(state))
+        x = F.selu(self.linear2(x))
         # x = torch.sin(self.linear2(x))
 
         mean    = self.mean_linear(x)
