@@ -64,7 +64,7 @@ class PathIntegral(object):
                 #w.div_(w.sum(0))
                 #self.a[t] = self.a[t] + w.unsqueeze(1).t().mm(da[t])
                 self.a[t] = self.a[t] + torch.mv(da[t].T, w[t])
-            return self.a[0].data.numpy()
+            return self.a[0].clone().numpy()
 
 
 
