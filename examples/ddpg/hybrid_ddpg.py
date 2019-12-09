@@ -146,7 +146,7 @@ if __name__ == '__main__':
         for step in range(max_steps):
             # action = ou_noise.get_action(planner(state))
             # action = policy_net.get_action(state)
-            action = planner(state) + np.random.normal(0., 1.0*(0.999**(frame_idx)), size=(action_dim))
+            action = planner(state) + np.random.normal(0., 0.3*(0.99**(frame_idx)), size=(action_dim))
 
             for _ in range(frame_skip):
                 next_state, reward, done, _ = env.step(action.copy())
