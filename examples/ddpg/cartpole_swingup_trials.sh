@@ -8,5 +8,6 @@ do
                 --max_frames 10000 \
                 --frame_skip 4 \
                 --render
+                --model_lr 3e-4
     echo "trial $i out of $trials"
 done

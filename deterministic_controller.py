@@ -84,4 +84,4 @@ class DeterministicCtrl(object):
                 self.u[t] = self.u[t] + self.eps*(dldu[t] + rho.mm(dfdu[t]))
 #                 self.u[t] = self.u[t] + self.eps * (dldu[t] + rho.mm(dfdu[t]))
 
-        return torch.tanh(self.u[0] + u_p[0]).data.numpy()
+        return torch.tanh(self.u[0] + u_p[0]).detach().clone().numpy()
