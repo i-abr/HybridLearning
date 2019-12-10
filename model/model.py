@@ -35,7 +35,7 @@ class Model(nn.Module):
 
         self.log_std = nn.Sequential(
             nn.Linear(def_layers[-1], def_layers[-1]),
-            nn.SELU(),
+            nn.ReLU(),
             nn.Linear(def_layers[-1], num_states)
         )
 
@@ -50,12 +50,12 @@ class Model(nn.Module):
         for i in self.n_params[:-1]:
             w = getattr(self, 'layer' + str(i))
             x = w(x)
-            x = F.selu(x)
+            x = F.relu(x)
             #x = torch.sin(x)
 
             w = getattr(self, 'rew_layer' + str(i))
             rew = w(rew)
-            rew = F.selu(rew)
+            rew = F.relu(rew)
             #rew = torch.sin(rew)
 
         std = torch.clamp(self.log_std(x), -20., 2.).exp()
