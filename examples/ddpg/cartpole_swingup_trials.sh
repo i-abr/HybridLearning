@@ -8,5 +8,6 @@ do
                 --max_frames 10000 \
                 --frame_skip 4 \
                 --render
+                --cuda
     echo "trial $i out of $trials"
 done
