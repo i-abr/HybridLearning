@@ -96,7 +96,7 @@ if __name__ == '__main__':
     now = datetime.now()
     date_str = now.strftime("%Y-%m-%d_%H-%M-%S/")
 
-    path = './data/' + env_name +  '/' + date_str
+    path = './data/' + env_name +  '/' + 'h_sac/' + date_str
     if os.path.exists(path) is False:
         os.makedirs(path)
 
@@ -109,7 +109,6 @@ if __name__ == '__main__':
     # model = Model(state_dim, action_dim, def_layers=[200, 200])
     model = MDNModel(state_dim, action_dim, def_layers=[200, 200])
 
-    planner = PathIntegral(model, policy_net, samples=args.trajectory_samples, t_H=args.horizon, lam=0.1)
 
     replay_buffer_size = 1000000
     replay_buffer = ReplayBuffer(replay_buffer_size)
@@ -127,6 +126,7 @@ if __name__ == '__main__':
                           value_lr=args.value_lr,
                           soft_q_lr=args.soft_q_lr)
 
+    planner = PathIntegral(model, policy_net, samples=args.trajectory_samples, t_H=args.horizon, lam=0.1)
 
     max_frames  = args.max_frames
     max_steps   = args.max_steps
@@ -163,8 +163,8 @@ if __name__ == '__main__':
 
             if frame_idx % int(max_frames/10) == 0:
                 print(
-                    'frame : {}/{}, \t last rew : {}, \t model loss : {}'.format(
-                        frame_idx, max_frames, rewards[-1][1], model_optim.log['loss'][-1]
+                    'frame : {}/{}, \t last rew : {}, \t rew loss : {}'.format(
+                        frame_idx, max_frames, rewards[-1][1], model_optim.log['rew_loss'][-1]
                     )
                 )
 

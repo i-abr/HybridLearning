@@ -37,7 +37,7 @@ parser.set_defaults(done_util=True)
 
 parser.add_argument('--render', dest='render', action='store_true')
 parser.add_argument('--no_render', dest='render', action='store_false')
-parser.set_defaults(render=False)
+parser.set_defaults(render=True)
 
 args = parser.parse_args()
 
@@ -64,6 +64,7 @@ if __name__ == '__main__':
     # env = KukaGymEnv(renders=True, isDiscrete=False)
 
     env_name = args.env
+    print(args.render)
     try:
         env = envs.env_list[env_name](render=args.render)
     except TypeError as err:

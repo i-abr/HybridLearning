@@ -56,7 +56,7 @@ class MDNModelOptimizer(object):
         self.model_optimizer  = optim.Adam(self.model.parameters(), lr=lr)
 
         # logger
-        self.log = {'loss' : []}
+        self.log = {'loss' : [], 'rew_loss': []}
 
     def update_model(self, batch_size, mini_iter=1):
 
@@ -70,8 +70,11 @@ class MDNModelOptimizer(object):
             done    = torch.FloatTensor(np.float32(done)).unsqueeze(1)
 
             log_probs, pred_rewards = self.model(states, actions, next_states)
+            
+            next_value = self.model.predict_reward(next_states)
 
-            rew_loss = torch.mean(torch.pow(pred_rewards - rewards,2))
+            #rew_loss = torch.mean(torch.pow(pred_rewards - rewards,2))
+            rew_loss = torch.mean(torch.pow((rewards+(1-done)*0.99*next_value).detach()-pred_rewards,2))
             model_loss = -torch.mean(log_probs)
 
             loss = 0.5 * rew_loss + model_loss
@@ -81,3 +84,5 @@ class MDNModelOptimizer(object):
             self.model_optimizer.step()
 
         self.log['loss'].append(loss.item())
+        self.log['rew_loss'].append(rew_loss.item())
+        

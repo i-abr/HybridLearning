@@ -69,14 +69,15 @@ class MDNModel(nn.Module):
                                     n_hidden=def_layers[0], n_gaussians=n_gaussians)
         self.n_params = []
 
-        layers = [num_states + num_actions] + def_layers + [1]
+        layers = [num_states] + def_layers + [1]
         for i, (insize, outsize) in enumerate(zip(layers[:-1], layers[1:])):
             var = 'rew_layer' + str(i)
             setattr(self, var, nn.Linear(insize, outsize))
             self.n_params.append(i)
 
-    def predict_reward(self, s, a):
-        rew = torch.cat([s, a], axis=1)
+    def predict_reward(self, s):
+        #rew = torch.cat([s, a], axis=1)
+        rew = s
         for i in self.n_params[:-1]:
             w = getattr(self, 'rew_layer' + str(i))
             rew = w(rew)
@@ -93,12 +94,12 @@ class MDNModel(nn.Module):
         dx is the change in the state
         """
 
-        rew = self.predict_reward(s, a)
+        rew = self.predict_reward(s)
         logprob = self.mdn_model.logits(s, a, ns)
 
         return logprob, rew
 
     def step(self, x, u):
         ns = self.mdn_model.sample(x, u)
-        rew = self.predict_reward(x, u)
+        rew = self.predict_reward(x)
         return ns, rew
