@@ -137,7 +137,7 @@ if __name__ == '__main__':
     batch_size  = 128
 
     # env.camera_adjust()
-
+    ep_num = 0
     while frame_idx < max_frames:
         state = env.reset()
         planner.reset()
@@ -174,9 +174,10 @@ if __name__ == '__main__':
             if args.done_util:
                 if done:
                     break
-
+        if len(replay_buffer) > batch_size:
+            print('ep rew', ep_num, episode_reward, model_optim.log['rew_loss'][-1])
         rewards.append([frame_idx, episode_reward])
-
+        ep_num += 1
     print('saving final data set')
     pickle.dump(rewards, open(path + 'reward_data'+ '.pkl', 'wb'))
     torch.save(policy_net.state_dict(), path + 'policy_' + 'final' + '.pt')

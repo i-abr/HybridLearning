@@ -109,7 +109,7 @@ if __name__ == '__main__':
     # for _ in range(5):
     #     get_expert_data(env, replay_buffer)
     # env. render('human')
-
+    ep_num = 0
     while frame_idx < max_frames:
         state = env.reset()
         episode_reward = 0
@@ -142,7 +142,8 @@ if __name__ == '__main__':
             if args.done_util:
                 if done:
                     break
-
+        print('ep reward', ep_num, episode_reward)
+        ep_num += 1
         rewards.append([frame_idx, episode_reward])
 
     print('saving final data set')
