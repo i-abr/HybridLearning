@@ -16,7 +16,7 @@ from sac import ReplayBuffer
 from sac import NormalizedActions
 from hybrid_stochastic import PathIntegral
 from model import ModelOptimizer, Model
-from model import MDNModelOptimizer, MDNModel
+# from model import MDNModelOptimizer, MDNModel
 # argparse things
 import argparse
 
@@ -106,16 +106,16 @@ if __name__ == '__main__':
 
     policy_net = PolicyNetwork(state_dim, action_dim, hidden_dim)
 
-    # model = Model(state_dim, action_dim, def_layers=[200, 200])
-    model = MDNModel(state_dim, action_dim, def_layers=[200, 200])
+    model = Model(state_dim, action_dim, def_layers=[200, 200])
+    # model = MDNModel(state_dim, action_dim, def_layers=[200, 200])
 
 
     replay_buffer_size = 1000000
     replay_buffer = ReplayBuffer(replay_buffer_size)
 
-    # model_optim = ModelOptimizer(model, replay_buffer, lr=args.model_lr)
+    model_optim = ModelOptimizer(model, replay_buffer, lr=args.model_lr)
 
-    model_optim = MDNModelOptimizer(model, replay_buffer, lr=args.model_lr)
+    # model_optim = MDNModelOptimizer(model, replay_buffer, lr=args.model_lr)
 
 
     sac = SoftActorCritic(policy=policy_net,

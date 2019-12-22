@@ -16,7 +16,7 @@ class Model(nn.Module):
         super(Model, self).__init__()
         self.num_states  = num_states
         self.num_actions = num_actions
-        layers = [1 + num_states + num_actions] + def_layers + [num_states]
+        layers = [num_states + num_actions] + def_layers + [num_states]
 
         self.n_params = []
         for i, (insize, outsize) in enumerate(zip(layers[:-1], layers[1:])):
@@ -24,6 +24,13 @@ class Model(nn.Module):
             setattr(self, var, nn.Linear(insize, outsize))
             self.n_params.append(i)
 
+        self.reward_fun = nn.Sequential(
+            nn.Linear(num_states+num_actions, def_layers[0]),
+            nn.ReLU(),
+            nn.Linear(def_layers[0], def_layers[1]),
+            nn.ReLU(),
+            nn.Linear(def_layers[1], 1)
+        )
 
 
         # layers = [num_states + num_actions] + def_layers + [1]
@@ -46,32 +53,21 @@ class Model(nn.Module):
         dx is the change in the state
         """
         x   = torch.cat([s, a], axis=1)
-        rew = torch.cat([s, a], axis=1)
         for i in self.n_params[:-1]:
             w = getattr(self, 'layer' + str(i))
             x = w(x)
             x = F.relu(x)
-            #x = torch.sin(x)
-
-            w = getattr(self, 'rew_layer' + str(i))
-            rew = w(rew)
-            rew = F.relu(rew)
-            #rew = torch.sin(rew)
 
         std = torch.clamp(self.log_std(x), -20., 2.).exp()
 
         w = getattr(self, 'layer' + str(self.n_params[-1]))
         x = w(x)
 
-        w = getattr(self, 'rew_layer' + str(self.n_params[-1]))
-        rew = w(rew)
-
+        # in case I want to update the way the var looks like
         #std = torch.clamp(self.log_std, -20., 2).exp().expand_as(x)
 
-        dist = Normal(s+x, std)
-
-        return dist, rew
+        return s+x, std, self.reward_fun(torch.cat([s, a], axis=1))
 
     def step(self, x, u):
-        dist, rew = self.forward(x, u)
-        return dist.mean, rew
+        mean, std, rew = self.forward(x, u)
+        return mean, rew

@@ -13,12 +13,10 @@ class ModelOptimizer(object):
         # reference the model and buffer
         self.model          = model
         self.replay_buffer  = replay_buffer
-
         # set the model optimizer
         self.model_optimizer  = optim.Adam(self.model.parameters(), lr=lr)
-
         # logger
-        self.log = {'loss' : []}
+        self.log = {'loss' : [], 'rew_loss': []}
 
     def update_model(self, batch_size, mini_iter=1):
 
@@ -31,10 +29,12 @@ class ModelOptimizer(object):
             rewards = torch.FloatTensor(rewards).unsqueeze(1)
             done    = torch.FloatTensor(np.float32(done)).unsqueeze(1)
 
-            pred_next_state_dist, pred_rewards = self.model(states, actions)
+            pred_mean, pred_std, pred_rew = self.model(states, actions)
 
-            rew_loss = torch.mean(torch.pow(pred_rewards - rewards,2))
-            model_loss = -torch.mean(pred_next_state_dist.log_prob(next_states))# - 1e-3*pred_next_state_dist.entropy().mean()
+            state_dist = Normal(pred_mean, pred_std)
+
+            rew_loss = torch.mean(torch.pow(pred_rew - rewards,2))
+            model_loss = -torch.mean(state_dist.log_prob(next_states))# - 1e-3*pred_next_state_dist.entropy().mean()
 
             loss = 0.5 * rew_loss + model_loss
 
@@ -43,6 +43,7 @@ class ModelOptimizer(object):
             self.model_optimizer.step()
 
         self.log['loss'].append(loss.item())
+        self.log['rew_loss'].append(rew_loss.item())
 
 class MDNModelOptimizer(object):
 
@@ -70,7 +71,7 @@ class MDNModelOptimizer(object):
             done    = torch.FloatTensor(np.float32(done)).unsqueeze(1)
 
             log_probs, pred_rewards = self.model(states, actions, next_states)
-            
+
             next_value = self.model.predict_reward(next_states)
 
             #rew_loss = torch.mean(torch.pow(pred_rewards - rewards,2))
@@ -85,4 +86,3 @@ class MDNModelOptimizer(object):
 
         self.log['loss'].append(loss.item())
         self.log['rew_loss'].append(rew_loss.item())
-        
