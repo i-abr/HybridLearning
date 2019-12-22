@@ -16,7 +16,7 @@ class Model(nn.Module):
         super(Model, self).__init__()
         self.num_states  = num_states
         self.num_actions = num_actions
-        layers = [num_states + num_actions] + def_layers + [num_states]
+        layers = [1 + num_states + num_actions] + def_layers + [num_states]
 
         self.n_params = []
         for i, (insize, outsize) in enumerate(zip(layers[:-1], layers[1:])):
@@ -26,10 +26,10 @@ class Model(nn.Module):
 
 
 
-        layers = [num_states + num_actions] + def_layers + [1]
-        for i, (insize, outsize) in enumerate(zip(layers[:-1], layers[1:])):
-            var = 'rew_layer' + str(i)
-            setattr(self, var, nn.Linear(insize, outsize))
+        # layers = [num_states + num_actions] + def_layers + [1]
+        # for i, (insize, outsize) in enumerate(zip(layers[:-1], layers[1:])):
+        #     var = 'rew_layer' + str(i)
+        #     setattr(self, var, nn.Linear(insize, outsize))
 
         #self.log_std = nn.Parameter(torch.ones(1, num_states) * std)
 
