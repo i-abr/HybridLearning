@@ -120,8 +120,8 @@ if __name__ == '__main__':
                 next_state, reward, done, _ = env.step(action.copy())
 
             replay_buffer.push(state, action, reward, next_state, done)
-            # if len(replay_buffer) > batch_size:
-            #     sac.soft_q_update(batch_size)
+            if len(replay_buffer) > batch_size:
+                sac.soft_q_update(batch_size)
 
             state = next_state
             episode_reward += reward
@@ -142,13 +142,10 @@ if __name__ == '__main__':
             if args.done_util:
                 if done:
                     break
-        if len(replay_buffer) > batch_size:
-            for k in range(64):
-                sac.soft_q_update(batch_size)
-                
+
         print('ep reward', ep_num, episode_reward)
         ep_num += 1
-        rewards.append([frame_idx, episode_reward])
+        rewards.append([frame_idx, episode_reward, ep_num])
 
     print('saving final data set')
     pickle.dump(rewards, open(path + 'reward_data'+ '.pkl', 'wb'))
