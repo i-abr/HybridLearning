@@ -41,6 +41,8 @@ class SoftActorCritic(object):
         # reference the replay buffer
         self.replay_buffer = replay_buffer
 
+        self.log = {'value_loss' :[], 'q_value_loss':[], 'policy_loss' :[]}
+
     def soft_q_update(self, batch_size,
                             gamma       = 0.99,
                             mean_lambda = 1e-3,
@@ -96,3 +98,7 @@ class SoftActorCritic(object):
             target_param.data.copy_(
                 target_param.data * (1.0 - soft_tau) + param.data * soft_tau
             )
+
+        self.log['q_value_loss'].append(q_value_loss.item())
+        self.log['value_loss'].append(value_loss.item())
+        self.log['policy_loss'].append(policy_loss.item())

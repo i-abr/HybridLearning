@@ -15,7 +15,7 @@ from sac import PolicyNetwork
 from sac import ReplayBuffer
 from sac import NormalizedActions
 from hybrid_stochastic import PathIntegral
-from model import ModelOptimizer, Model
+from model import ModelOptimizer, Model, SARSAReplayBuffer
 # from model import MDNModelOptimizer, MDNModel
 # argparse things
 import argparse
@@ -25,8 +25,8 @@ parser.add_argument('--env',        type=str,   help=envs.getlist())
 parser.add_argument('--max_steps',  type=int,   default=200)
 parser.add_argument('--max_frames', type=int,   default=10000)
 parser.add_argument('--frame_skip', type=int,   default=2)
-parser.add_argument('--model_lr',   type=float, default=1e-3)
-parser.add_argument('--policy_lr',  type=float, default=3e-3)
+parser.add_argument('--model_lr',   type=float, default=3e-3)
+parser.add_argument('--policy_lr',  type=float, default=3e-4)
 parser.add_argument('--value_lr',   type=float, default=3e-4)
 parser.add_argument('--soft_q_lr',  type=float, default=3e-4)
 
@@ -106,14 +106,15 @@ if __name__ == '__main__':
 
     policy_net = PolicyNetwork(state_dim, action_dim, hidden_dim)
 
-    model = Model(state_dim, action_dim, def_layers=[200, 200])
+    model = Model(state_dim, action_dim, def_layers=[200])
     # model = MDNModel(state_dim, action_dim, def_layers=[200, 200])
 
 
     replay_buffer_size = 1000000
     replay_buffer = ReplayBuffer(replay_buffer_size)
 
-    model_optim = ModelOptimizer(model, replay_buffer, lr=args.model_lr)
+    model_replay_buffer = SARSAReplayBuffer(replay_buffer_size)
+    model_optim = ModelOptimizer(model, model_replay_buffer, lr=args.model_lr)
 
     # model_optim = MDNModelOptimizer(model, replay_buffer, lr=args.model_lr)
 
@@ -140,20 +141,25 @@ if __name__ == '__main__':
     ep_num = 0
     while frame_idx < max_frames:
         state = env.reset()
+        action = planner(state)
+
         planner.reset()
         episode_reward = 0
         for step in range(max_steps):
-            action = planner(state)
             # action = policy_net.get_action(state)
             for _ in range(frame_skip):
                 next_state, reward, done, _ = env.step(action.copy())
 
+            # if len(replay_buffer) > batch_size:
+            #     sac.soft_q_update(batch_size)
+            #     model_optim.update_model(batch_size, mini_iter=args.model_iter)
+            next_action = planner(next_state)
+
             replay_buffer.push(state, action, reward, next_state, done)
-            if len(replay_buffer) > batch_size:
-                sac.soft_q_update(batch_size)
-                model_optim.update_model(batch_size, mini_iter=args.model_iter)
+            model_replay_buffer.push(state, action, reward, next_state, next_action, done)
 
             state = next_state
+            action = next_action
             episode_reward += reward
             frame_idx += 1
 
@@ -175,7 +181,12 @@ if __name__ == '__main__':
                 if done:
                     break
         if len(replay_buffer) > batch_size:
-            print('ep rew', ep_num, episode_reward, model_optim.log['rew_loss'][-1])
+            for k in range(64):
+                sac.soft_q_update(batch_size)
+                model_optim.update_model(batch_size, mini_iter=1)#args.model_iter)
+        if len(replay_buffer) > batch_size:
+            print('ep rew', ep_num, episode_reward, model_optim.log['rew_loss'][-1], model_optim.log['loss'][-1])
+            print('ssac loss', sac.log['value_loss'][-1], sac.log['policy_loss'][-1], sac.log['q_value_loss'][-1])
         rewards.append([frame_idx, episode_reward])
         ep_num += 1
     print('saving final data set')

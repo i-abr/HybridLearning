@@ -22,12 +22,12 @@ import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--env', type=str, help=envs.getlist())
-parser.add_argument('--max_steps', type=int, default=200)
-parser.add_argument('--max_frames', type=int, default=10000)
-parser.add_argument('--frame_skip', type=int, default=2)
-parser.add_argument('--policy_lr', type=float, default=3e-3)
-parser.add_argument('--value_lr', type=float, default=3e-4)
-parser.add_argument('--soft_q_lr', type=float, default=3e-4)
+parser.add_argument('--max_steps',  type=int,   default=200)
+parser.add_argument('--max_frames', type=int,   default=10000)
+parser.add_argument('--frame_skip', type=int,   default=2)
+parser.add_argument('--policy_lr',  type=float, default=3e-4)
+parser.add_argument('--value_lr',   type=float, default=3e-4)
+parser.add_argument('--soft_q_lr',  type=float, default=3e-4)
 
 
 
@@ -120,8 +120,8 @@ if __name__ == '__main__':
                 next_state, reward, done, _ = env.step(action.copy())
 
             replay_buffer.push(state, action, reward, next_state, done)
-            if len(replay_buffer) > batch_size:
-                sac.soft_q_update(batch_size)
+            # if len(replay_buffer) > batch_size:
+            #     sac.soft_q_update(batch_size)
 
             state = next_state
             episode_reward += reward
@@ -142,6 +142,10 @@ if __name__ == '__main__':
             if args.done_util:
                 if done:
                     break
+        if len(replay_buffer) > batch_size:
+            for k in range(64):
+                sac.soft_q_update(batch_size)
+                
         print('ep reward', ep_num, episode_reward)
         ep_num += 1
         rewards.append([frame_idx, episode_reward])
