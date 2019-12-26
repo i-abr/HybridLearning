@@ -141,9 +141,10 @@ if __name__ == '__main__':
     ep_num = 0
     while frame_idx < max_frames:
         state = env.reset()
+        planner.reset()
+
         action = planner(state)
 
-        planner.reset()
         episode_reward = 0
         for step in range(max_steps):
             # action = policy_net.get_action(state)

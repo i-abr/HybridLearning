@@ -10,7 +10,7 @@ from .jacobian import jacobian
 
 class ModelOptimizer(object):
 
-    def __init__(self, model, replay_buffer, lr=1e-2, eps=1e-1):
+    def __init__(self, model, replay_buffer, lr=1e-2, eps=1e-1, lam=0.95):
 
         # reference the model and buffer
         self.model          = model
@@ -19,6 +19,7 @@ class ModelOptimizer(object):
         self.model_optimizer  = optim.Adam(self.model.parameters(), lr=lr)
         # logger
         self._eps = eps
+        self._lam = lam
         self.log = {'loss' : [], 'rew_loss': []}
 
     def update_model(self, batch_size, mini_iter=1):
@@ -42,7 +43,7 @@ class ModelOptimizer(object):
 
             next_vals = self.model.reward_fun(torch.cat([next_states, next_action], axis=1))
 
-            rew_loss = torch.mean(torch.pow((rewards+0.95*(1-done)*next_vals).detach() - pred_rew,2))
+            rew_loss = torch.mean(torch.pow((rewards+self._lam*(1-done)*next_vals).detach() - pred_rew,2))
             # rew_loss = torch.mean(torch.pow(rewards - pred_rew,2))
 
             model_loss = -torch.mean(state_dist.log_prob(next_states)) + self._eps * torch.norm(df, dim=[1,2]).mean()
@@ -53,7 +54,6 @@ class ModelOptimizer(object):
             self.model_optimizer.zero_grad()
             loss.backward()
             self.model_optimizer.step()
-
         self.log['loss'].append(loss.item())
         self.log['rew_loss'].append(rew_loss.item())
 

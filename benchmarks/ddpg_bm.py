@@ -26,7 +26,7 @@ parser.add_argument('--max_steps', type=int, default=200)
 parser.add_argument('--max_frames', type=int, default=10000)
 parser.add_argument('--frame_skip', type=int, default=2)
 parser.add_argument('--value_lr', type=float, default=3e-4)
-parser.add_argument('--policy_lr', type=float, default=3e-3)
+parser.add_argument('--policy_lr', type=float, default=3e-4)
 
 
 parser.add_argument('--done_util', dest='done_util', action='store_true')
@@ -93,7 +93,7 @@ if __name__ == '__main__':
                           replay_buffer=replay_buffer,
                           policy_lr=args.policy_lr,
                           value_lr=args.value_lr)
-    ou_noise = OUNoise(env.action_space, decay_period=args.max_frames)
+    ou_noise = OUNoise(env.action_space)
 
     max_frames  = args.max_frames
     max_steps   = args.max_steps
@@ -109,11 +109,13 @@ if __name__ == '__main__':
 
     while frame_idx < max_frames:
         state = env.reset()
+        ou_noise.reset()
+
         episode_reward = 0
         for step in range(max_steps):
+            # action = ou_noise.get_action(policy_net.get_action(state), t=frame_idx)
             # action = ou_noise.get_action(policy_net.get_action(state))
-            # action = ou_noise.get_action(policy_net.get_action(state))
-            action = policy_net.get_action(state) + np.random.normal(0., 1.0*(0.99**(frame_idx)), size=(action_dim))
+            action = policy_net.get_action(state) + np.random.normal(0., 1.0*(0.999**(frame_idx)), size=(action_dim,))
             for _ in range(frame_skip):
                 next_state, reward, done, _ = env.step(action.copy())
 

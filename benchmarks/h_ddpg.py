@@ -16,7 +16,7 @@ from ddpg import ReplayBuffer
 from ddpg import OUNoise
 
 from deterministic_controller import DeterministicCtrl
-from model import ModelOptimizer, Model
+from model import ModelOptimizer, Model, SARSAReplayBuffer
 # from model import MDNModelOptimizer, MDNModel
 # argparse things
 import argparse
@@ -26,11 +26,13 @@ parser.add_argument('--env',        type=str,   help=envs.getlist())
 parser.add_argument('--max_steps',  type=int,   default=200)
 parser.add_argument('--max_frames', type=int,   default=10000)
 parser.add_argument('--frame_skip', type=int,   default=2)
-parser.add_argument('--model_lr',   type=float, default=1e-3)
+parser.add_argument('--model_lr',   type=float, default=3e-3)
 parser.add_argument('--value_lr',   type=float, default=3e-4)
-parser.add_argument('--policy_lr',  type=float, default=3e-3)
+parser.add_argument('--policy_lr',  type=float, default=3e-4)
+parser.add_argument('--jacobi_weight',  type=float, default=1e-3)
 
-parser.add_argument('--horizon', type=int, default=10)
+
+parser.add_argument('--horizon', type=int, default=5)
 parser.add_argument('--model_iter', type=int, default=2)
 parser.add_argument('--ctrl_weight', type=float, default=1.0)
 
@@ -105,15 +107,17 @@ if __name__ == '__main__':
 
     policy_net = PolicyNetwork(state_dim, action_dim, hidden_dim)
 
-    model = Model(state_dim, action_dim, def_layers=[200, 200])
+    model = Model(state_dim, action_dim, def_layers=[200])
     # model = MDNModel(state_dim, action_dim, def_layers=[200, 200])
 
-    planner = DeterministicCtrl(model, policy_net, T=args.horizon)
+    planner = DeterministicCtrl(model, policy_net, T=args.horizon, eps=1e-1, reg=args.ctrl_weight)
 
     replay_buffer_size = 1000000
     replay_buffer = ReplayBuffer(replay_buffer_size)
+    model_replay_buffer = SARSAReplayBuffer(replay_buffer_size)
 
-    model_optim = ModelOptimizer(model, replay_buffer, lr=args.model_lr)
+    model_optim = ModelOptimizer(model, model_replay_buffer,
+                                eps=args.jacobi_weight, lr=args.model_lr, lam=0.95)
 
     # model_optim = MDNModelOptimizer(model, replay_buffer, lr=args.model_lr)
 
@@ -124,7 +128,8 @@ if __name__ == '__main__':
                           replay_buffer=replay_buffer,
                           policy_lr=args.policy_lr,
                           value_lr=args.value_lr)
-    ou_noise = OUNoise(env.action_space, decay_period=args.max_frames)
+
+    ou_noise = OUNoise(env.action_space, max_sigma=1.0, decay_period=args.max_frames/2)
 
 
     max_frames  = args.max_frames
@@ -136,27 +141,38 @@ if __name__ == '__main__':
     batch_size  = 128
 
     # env.camera_adjust()
-
+    ep_num = 0
     while frame_idx < max_frames:
         state = env.reset()
         planner.reset()
         episode_reward = 0
-        # ou_noise.reset()
+        ou_noise.reset()
+
+        action = planner(state)# + np.random.normal(0., 0.3*(0.995**(frame_idx)), size=(action_dim))
+        action += np.random.normal(0., 1.0*(0.999**(frame_idx)), size=(action_dim,))
 
         for step in range(max_steps):
-            action = policy_net.get_action(state) + np.random.normal(0., 1.0*(0.999**(frame_idx)), size=(action_dim))
+            # action = policy_net.get_action(state) + np.random.normal(0., 1.0*(0.999**(frame_idx)), size=(action_dim))
             # action = policy_net.get_action(state)
-            # action = planner(state) + np.random.normal(0., 0.3*(0.99**(frame_idx)), size=(action_dim))
-
+            # action = planner(state) + np.random.normal(0., 0.3*(0.995**(frame_idx)), size=(action_dim))
+            # action = ou_noise.get_action(action, t=frame_idx)
+            if not np.isfinite(action).all():
+                print('gahhh', action)
             for _ in range(frame_skip):
                 next_state, reward, done, _ = env.step(action.copy())
 
+            next_action = planner(next_state)# + np.random.normal(0., 1.0*(0.995**(frame_idx)), size=(action_dim))
+            next_action += np.random.normal(0., 1.0*(0.999**(frame_idx+1)), size=(action_dim,))
+
             replay_buffer.push(state, action, reward, next_state, done)
+            model_replay_buffer.push(state, action, reward, next_state, next_action, done)
+
             if len(replay_buffer) > batch_size:
                 ddpg.update(batch_size)
                 model_optim.update_model(batch_size, mini_iter=args.model_iter)
 
             state = next_state
+            action = next_action
             episode_reward += reward
             frame_idx += 1
 
@@ -179,6 +195,8 @@ if __name__ == '__main__':
                     break
 
         rewards.append([frame_idx, episode_reward])
+        print('eps num : ', ep_num, ' rew', rewards[-1])
+        ep_num += 1
 
     print('saving final data set')
     pickle.dump(rewards, open(path + 'reward_data'+ '.pkl', 'wb'))
