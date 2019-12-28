@@ -3,6 +3,8 @@ import torch.autograd as autograd
 from torch.autograd import Variable
 from torch.autograd.gradcheck import zero_gradients
 import torch.nn.functional as F
+from torch.distributions import Normal
+
 
 def compute_jacobian(inputs, output, create_graph=False):
     """
@@ -29,7 +31,7 @@ def compute_jacobian(inputs, output, create_graph=False):
 
     return torch.transpose(jacobian, dim0=0, dim1=1)
 
-class HybridPlanner(object):
+class HybridDeterControl(object):
 
     def __init__(self, model, policy, T=10, eps=1e-1, reg=1.0):
         self.model = model
@@ -59,17 +61,21 @@ class HybridPlanner(object):
             x = []
             for t in range(self.T-1):
                 x.append(x_t.clone())
-                u_t = self.policy(x_t)
+                u_t, log_std_t = self.policy(x_t)
                 x_t, r_t = self.model.step(x_t, torch.tanh(self.u[t].unsqueeze(0) + u_t))
 
         # compute those derivatives
         x = torch.cat(x)
         x.requires_grad = True
-        u_p = self.policy(x)
+        u_p, log_std_p = self.policy(x)
+
+        pi = Normal(u_p, log_std_p.exp())
 
         pred_state, pred_rew = self.model.step(x, torch.tanh(self.u+u_p))
-        # pred_rew = pred_rew - torch.max(pred_rew)
-        pred_rew = (pred_rew - self.reg*torch.sum(torch.pow(self.u,2), dim=1, keepdim=True))/self.T
+        log_prob = pi.log_prob(self.u+u_p)
+        # log_prob = log_prob - torch.max(log_prob, dim=1, keepdim=True)[0]
+
+        pred_rew = pred_rew + log_prob.mean()
 
         # loss = pred_rew.mean()
         dfdx = compute_jacobian(x, pred_state)
@@ -77,37 +83,9 @@ class HybridPlanner(object):
         dldx = compute_jacobian(x, pred_rew)
         dldu = compute_jacobian(self.u, pred_rew)
 
-        # loss.backward()
-
-        # with torch.no_grad():
-            # self.u += 1e-3 * self.u.grad
-
-        # self.u.grad.zero_()
-
-        # normalize
-        # _dldx = torch.norm(dldx, dim=1, keepdim=True)
-        # _dldu = torch.norm(dldu, dim=1, keepdim=True)
-
-        # dldx = dldx / _dldx
-        # dldu = dldu / _dldu
-
-        # if not torch.isfinite(dldx).any() or not torch.isfinite(dldu).any(): print('yuppp')
-
         with torch.no_grad():
             rho = torch.zeros(1, self.num_states)
             for t in reversed(range(self.T-1)):
-                # dldx_norm = torch.max(torch.abs(dldx[t])) + 1e-5
-                # dldu_norm = torch.max(torch.abs(dldu[t])) + 1e-5
-                # if torch.abs(dldx_norm) < 1e-8:
-                #     dldx_norm = 1.0
-                # if torch.abs(dldu_norm) < 1e-8:
-                #     dldu_norm = 1.0
                 rho = dldx[t] + rho.mm(dfdx[t])
-                # rho_norm = torch.norm(rho)
-                # if rho_norm > 1.0:
-                #     rho = rho/rho_norm
-                # self.u[t] = self.u[t] + self.eps*(dldu[t] + rho.mm(dfdu[t]))
-                self.u[t] = self.u[t] + (dldu[t] + rho.mm(dfdu[t])) * 0.1
-                # self.u[t] = rho.mm(dfdu[t])# + self.u[t]
-                # if not torch.isfinite(self.u[t]).any(): print('dsdfsfgsdgsdf',rho, dldx[t], dldu[t], _dldx[t], _dldu[t])
+                self.u[t] = self.u[t] + (dldu[t] + rho.mm(dfdu[t])) * self.eps
         return torch.tanh(self.u[0] + u_p[0]).detach().clone().numpy()

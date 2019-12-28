@@ -116,12 +116,16 @@ if __name__ == '__main__':
 
         for step in range(max_steps):
             action = policy_net.get_action(state)
+
             for _ in range(frame_skip):
                 next_state, reward, done, _ = env.step(action.copy())
 
             replay_buffer.push(state, action, reward, next_state, done)
+
+
             if len(replay_buffer) > batch_size:
                 sac.soft_q_update(batch_size)
+
 
             state = next_state
             episode_reward += reward

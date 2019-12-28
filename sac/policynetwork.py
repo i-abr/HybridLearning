@@ -13,7 +13,8 @@ class PolicyNetwork(nn.Module):
         self.log_std_max = log_std_max
 
         self.linear1 = nn.Linear(num_inputs, hidden_size)
-        # self.linear2 = nn.Linear(hidden_size, hidden_size)
+
+        self.linear2 = nn.Linear(num_inputs, hidden_size)
 
         self.mean_linear = nn.Linear(hidden_size, num_actions)
         self.mean_linear.weight.data.uniform_(-init_w, init_w)
@@ -29,7 +30,7 @@ class PolicyNetwork(nn.Module):
         x = torch.sin(self.linear1(state))
 
         mean    = self.mean_linear(x)
-        log_std = self.log_std_linear(x)
+        log_std = self.log_std_linear(F.relu(self.linear2(state)))
         log_std = torch.clamp(log_std, self.log_std_min, self.log_std_max)
 
         return mean, log_std

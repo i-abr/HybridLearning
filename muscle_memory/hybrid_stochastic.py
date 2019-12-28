@@ -1,7 +1,7 @@
 import torch
 from torch.distributions import Normal
 
-class PathIntegral(object):
+class HybridStochasticControl(object):
 
     def __init__(self, model, policy, samples=10, t_H=10, lam=0.1):
 
@@ -39,10 +39,10 @@ class PathIntegral(object):
                 s, rew = self.model.step(s, v)
                 mu, log_std = self.policy(s)
                 sk.append(-rew.squeeze())
-            
+
             sk = torch.stack(sk)
             sk = torch.cumsum(sk.flip(0), 0).flip(0)
-            
+
             sk = sk - torch.min(sk, dim=1, keepdim=True)[0]
 
             log_prob = torch.stack(log_prob)
@@ -54,6 +54,3 @@ class PathIntegral(object):
                 self.a[t] = self.a[t] + torch.mv(da[t].T, w[t])
 
             return self.a[0].clone().numpy()
-
-
-

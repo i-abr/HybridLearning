@@ -151,13 +151,15 @@ if __name__ == '__main__':
             for _ in range(frame_skip):
                 next_state, reward, done, _ = env.step(action.copy())
 
-            if len(replay_buffer) > batch_size:
-                sac.soft_q_update(batch_size)
-                model_optim.update_model(batch_size, mini_iter=args.model_iter)
+
             next_action = planner(next_state)
 
             replay_buffer.push(state, action, reward, next_state, done)
             model_replay_buffer.push(state, action, reward, next_state, next_action, done)
+
+            if len(replay_buffer) > batch_size:
+                sac.soft_q_update(batch_size)
+                model_optim.update_model(batch_size, mini_iter=args.model_iter)
 
             state = next_state
             action = next_action
