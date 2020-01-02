@@ -11,7 +11,7 @@ class Model(nn.Module):
     ### Words of matt; machine teaching
     """
     def __init__(self, num_states, num_actions,
-                 def_layers=[200, 200], std=0.):
+                 def_layers=[200, 200], std=0., init_w=3e-3):
 
         super(Model, self).__init__()
         self.num_states  = num_states
@@ -24,13 +24,20 @@ class Model(nn.Module):
             setattr(self, var, nn.Linear(insize, outsize))
             self.n_params.append(i)
 
-        self.reward_fun = nn.Sequential(
-            nn.Linear(num_states+num_actions, def_layers[0]),
-            nn.ReLU(),
-            nn.Linear(def_layers[0], def_layers[0]),
-            nn.ReLU(),
-            nn.Linear(def_layers[0], 1)
-        )
+        # self.reward_fun = nn.Sequential(
+        #     nn.Linear(num_states+num_actions, def_layers[0]),
+        #     nn.ReLU(),
+        #     nn.Linear(def_layers[0], def_layers[1]),
+        #     nn.ReLU(),
+        #     nn.Linear(def_layers[1], 1)
+        # )
+
+        self.linear1 = nn.Linear(num_states + num_actions, def_layers[0])
+        self.linear2 = nn.Linear(def_layers[0], def_layers[1])
+        self.linear3 = nn.Linear(def_layers[1], 1)
+
+        self.linear3.weight.data.uniform_(-init_w, init_w)
+        self.linear3.bias.data.uniform_(-init_w, init_w)
 
 
         # layers = [num_states + num_actions] + def_layers + [1]
@@ -46,6 +53,12 @@ class Model(nn.Module):
         #     nn.Linear(200, num_states)
         # )
 
+    def reward_fun(self, s):
+        x = s
+        x = F.relu(self.linear1(x))
+        x = F.relu(self.linear2(x))
+        x = self.linear3(x)
+        return x
 
     def forward(self, s, a):
         """
@@ -56,8 +69,8 @@ class Model(nn.Module):
         for i in self.n_params[:-1]:
             w = getattr(self, 'layer' + str(i))
             x = w(x)
-            # x = F.relu(x)
-            x = torch.sin(x)
+            x = F.relu(x)
+            # x = torch.sin(x)
         # std = torch.clamp(self.log_std(s), -20., 2.).exp()
 
         w = getattr(self, 'layer' + str(self.n_params[-1]))

@@ -41,7 +41,7 @@ class Memorize(object):
 
             nval = self.model_net.reward_fun(torch.cat([next_state, next_action], axis=1))
 
-            a, log_std = self.policy_net(state)
+            a, log_std = self.policy_net(state.detach())
 
             beta = Normal(ns, nstd)
             pi = Normal(a, log_std.exp())
@@ -51,6 +51,11 @@ class Memorize(object):
 
             # print((pi.log_prob(action)*val).shape)
 
+            # print(torch.abs(val).max(), torch.abs(pi.entropy()).max(), torch.abs(pi.log_prob(action)).max() )
+
+            # pval = self.model_net.reward_fun(torch.cat([state, pi.sample()],axis=1)).detach()
+
+            # pval = torch.clamp(self.model_net(state.detach(), pi.sample())[2].detach(), -50,50)
 
             policy_loss = -torch.mean(pi.log_prob(action)) - 3e-3*pi.entropy().mean()
 

@@ -63,8 +63,8 @@ if __name__ == '__main__':
     state_dim  = env.observation_space.shape[0]
     hidden_dim = 128
 
-    policy_net = PolicyNetwork(state_dim, action_dim, hidden_dim)
-    model = Model(state_dim, action_dim, def_layers=[200])
+    policy_net = PolicyNetwork(state_dim, action_dim, hidden_size=[128,64])
+    model = Model(state_dim, action_dim, def_layers=[200, 128])
 
     replay_buffer_size = 1000000
 
