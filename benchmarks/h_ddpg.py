@@ -162,8 +162,9 @@ if __name__ == '__main__':
                 next_state, reward, done, _ = env.step(action.copy())
 
             next_action = planner(next_state)# + np.random.normal(0., 1.0*(0.995**(frame_idx)), size=(action_dim))
-            next_action += np.random.normal(0., 1.0*(0.999**(frame_idx+1)), size=(action_dim,))
-
+            # next_action += np.random.normal(0., 1.0*(0.999**(frame_idx+1)), size=(action_dim,))
+            __eps = 1.0*(0.999**(frame_idx+1))
+            next_action += np.random.uniform(-__eps, +__eps, size=(action_dim,))
             replay_buffer.push(state, action, reward, next_state, done)
             model_replay_buffer.push(state, action, reward, next_state, next_action, done)
 
