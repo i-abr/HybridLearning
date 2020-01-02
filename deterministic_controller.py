@@ -91,14 +91,14 @@ class HybridDeterControl(object):
         # dfdu = dfdu/(torch.norm(dfdu, dim=[1,2],keepdim=True)+1e-4)
         # dl = torch.cat([dldx, dldu], dim=2)
         # dl_norm = torch.norm(dl, dim=[1,2],keepdim=True)+1e-4
-        # dldx = dldx/(torch.norm(dldx, dim=[1,2],keepdim=True)+1e-4)
-        # dldu = dldu/(torch.norm(dldu, dim=[1,2],keepdim=True)+1e-4)
+        dldx = dldx/(torch.norm(dldx, dim=[1,2],keepdim=True)+1e-4)
+        dldu = dldu/(torch.norm(dldu, dim=[1,2],keepdim=True)+1e-4)
 
         with torch.no_grad():
             rho = torch.zeros(1, self.num_states)
             for t in reversed(range(self.T)):
                 rho = dldx[t] + rho.mm(dfdx[t])
-                self.u[t] = self.u[t] + (dldu[t] + rho.mm(dfdu[t])/self.T) * self.eps
+                self.u[t] = self.u[t] + (dldu[t] + rho.mm(dfdu[t])) * self.eps
                 # self.u[t] = -rho.mm(dfdu[t]) *  log_std_p[t].exp()
         f1,_ = self.model.step(x[0].unsqueeze(0), u_p[0].unsqueeze(0))
         f2,_ = self.model.step(x[0].unsqueeze(0), self.u[0]+u_p[0].unsqueeze(0))
