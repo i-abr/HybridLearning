@@ -42,7 +42,6 @@ class Model(nn.Module):
         std = torch.clamp(self.log_std, -20., 2).exp().expand_as(s)
         return s+dx, std, self.reward_fun(x)
 
-
     def step(self, x, u):
         mean, std, rew = self.forward(x, u)
         return mean, rew

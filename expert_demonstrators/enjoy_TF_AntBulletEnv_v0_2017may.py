@@ -10,7 +10,7 @@ import numpy as np
 import pybullet_envs
 import time
 
-import pickle 
+import pickle
 
 def relu(x):
   return np.maximum(x, 0)
@@ -40,29 +40,23 @@ def main():
   pi = SmallReactivePolicy(env.observation_space, env.action_space)
   env.reset()
 
-  demonstrations = {
-      'state' : [],
-      'action' : [],
-      'next_state' : [],
-      'reward' : [],
-      'done' : []
-  }
+  demonstrations = []
+
   while 1:
     frame = 0
     score = 0
     restart_delay = 0
     obs = env.reset()
 
+    a = pi.act(obs)
     while 1:
       time.sleep(1. / 60.)
-      a = pi.act(obs)
       next_obs, r, done, _ = env.step(a)
-      
-      demonstrations['state'].append(obs)
-      demonstrations['action'].append(a)
-      demonstrations['next_state'].append(next_obs)
-      demonstrations['reward'].append(r)
-      demonstrations['done'].append(done)
+      next_a = pi.act(next_obs)
+
+      demonstrations.append((obs, a, r, next_obs, next_a, done))
+
+      a = next_a
       obs = next_obs
       #print("reward")
       #print(r)
