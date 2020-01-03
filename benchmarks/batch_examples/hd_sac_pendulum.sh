@@ -6,7 +6,7 @@ do
                 --env 'PendulumEnv' \
                 --max_frames 6000 \
                 --frame_skip 4 \
-                --horizon 5 \
+                --horizon 2 \
                 --render
     echo "trial $i out of $trials"
 done

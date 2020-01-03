@@ -114,7 +114,7 @@ if __name__ == '__main__':
     replay_buffer = ReplayBuffer(replay_buffer_size)
 
     model_replay_buffer = SARSAReplayBuffer(replay_buffer_size)
-    model_optim = ModelOptimizer(model, model_replay_buffer, lr=args.model_lr)
+    model_optim = ModelOptimizer(model, model_replay_buffer, lr=args.model_lr, eps=0.)
 
     # model_optim = MDNModelOptimizer(model, replay_buffer, lr=args.model_lr)
 
@@ -156,9 +156,9 @@ if __name__ == '__main__':
             _u_p, _log_std = policy_net(torch.FloatTensor(next_state).unsqueeze(0))
             # next_action += np.random.normal(0., _log_std.exp().detach().numpy().squeeze())
 
-            # next_action += np.random.normal(0., 1.0*(0.999**(frame_idx+1)), size=(action_dim,))
-            __eps = 1.0*(0.999**(frame_idx+1))
-            next_action += np.random.uniform(-__eps, +__eps, size=(action_dim,))
+            next_action += np.random.normal(0., 1.0*(0.999**(frame_idx+1)), size=(action_dim,))
+            # __eps = 1.0*(0.99**(frame_idx+1))
+            # next_action += np.random.uniform(-__eps, +__eps, size=(action_dim,))
             rho += _rho
             replay_buffer.push(state, action, reward, next_state, done)
             model_replay_buffer.push(state, action, reward, next_state, next_action, done)
