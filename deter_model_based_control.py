@@ -5,6 +5,8 @@ from torch.autograd.gradcheck import zero_gradients
 import torch.nn.functional as F
 from torch.distributions import Normal
 
+import time
+
 
 def compute_jacobian(inputs, output, create_graph=False):
     """
@@ -27,7 +29,7 @@ def compute_jacobian(inputs, output, create_graph=False):
         grad_output.zero_()
         grad_output[:, i] = 1
         output.backward(grad_output, retain_graph=True, create_graph=create_graph)
-        jacobian[i] = inputs.grad.data
+        jacobian[i] = inputs.grad.clone()
 
     return torch.transpose(jacobian, dim0=0, dim1=1)
 
@@ -67,7 +69,7 @@ class ModelBasedDeterControl(object):
         x = torch.cat(x)
         x.requires_grad = True
 
-        pred_state, pred_rew = self.model.step(x, self.u)
+        pred_state, pred_rew = self.model.step(x, torch.tanh(self.u))
 
         # loss = pred_rew.mean()
         dfdx = compute_jacobian(x, pred_state)
@@ -88,7 +90,14 @@ class ModelBasedDeterControl(object):
                 rho = dldx[t] + rho.mm(dfdx[t])
                 # self.u[t] = self.u[t] + (dldu[t] + rho.mm(dfdu[t])) * self.eps
                 # self.u[t] = 2.0* log_std_p[t].exp() * rho.mm(dfdu[t])
+            # rho_norm = torch.norm(rho)
+            # if rho_norm > 10.0:
+            #     rho = 10.0 * rho / rho_norm
+            rho = torch.clamp(rho, -1,+1)
             _u = rho.mm(dfdu[0])
+
+
+        time.sleep(1.0/60.)
         f1,_ = self.model.step(x[0].unsqueeze(0), torch.clamp(self.u[0].unsqueeze(0),-1,+1) )
         f2,_ = self.model.step(x[0].unsqueeze(0), torch.clamp(_u[0].unsqueeze(0),-1,+1))
         return torch.clamp(_u[0], -1, +1).detach().clone().numpy(), rho.mm((f2-f1).T).detach().clone().numpy().squeeze()

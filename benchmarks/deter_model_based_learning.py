@@ -64,10 +64,10 @@ if __name__ == '__main__':
 
     model = Model(state_dim, action_dim, def_layers=[200])
 
-    replay_buffer_size = 100000
+    replay_buffer_size = 1000000
 
     model_replay_buffer = SARSAReplayBuffer(replay_buffer_size)
-    model_optim = ModelOptimizer(model, model_replay_buffer, lr=args.model_lr)
+    model_optim = ModelOptimizer(model, model_replay_buffer, lr=args.model_lr, eps=0.)
 
     planner = ModelBasedDeterControl(model, T=args.horizon)
 

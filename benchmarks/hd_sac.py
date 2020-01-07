@@ -153,7 +153,7 @@ if __name__ == '__main__':
 
 
             next_action, _rho = planner(next_state)
-            _u_p, _log_std = policy_net(torch.FloatTensor(next_state).unsqueeze(0))
+            # _u_p, _log_std = policy_net(torch.FloatTensor(next_state).unsqueeze(0))
             # next_action += np.random.normal(0., _log_std.exp().detach().numpy().squeeze())
 
             next_action += np.random.normal(0., 1.0*(0.999**(frame_idx+1)), size=(action_dim,))

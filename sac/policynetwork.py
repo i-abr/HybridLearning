@@ -23,6 +23,8 @@ class PolicyNetwork(nn.Module):
         self.log_std_linear = nn.Linear(hidden_size, num_actions)
         self.log_std_linear.weight.data.uniform_(-init_w, init_w)
         self.log_std_linear.bias.data.uniform_(-init_w, init_w)
+        # self.log_std_linear.weight.data.zero_()
+        # self.log_std_linear.bias.data.zero_()
 
     def forward(self, state):
         # x = F.relu(self.linear1(state))
