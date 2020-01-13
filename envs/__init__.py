@@ -7,7 +7,7 @@ from pybullet_envs.bullet.minitaur_gym_env import MinitaurBulletEnv
 
 env_list = {
     'InvertedPendulumSwingupBulletEnv' : gym_pendulum_envs.InvertedPendulumSwingupBulletEnv,
-    'HalfCheetahBulletEnv' : gym_locomotion_envs.AntBulletEnv,
+    'HalfCheetahBulletEnv' : gym_locomotion_envs.HalfCheetahBulletEnv,
     'HopperBulletEnv' : gym_locomotion_envs.HopperBulletEnv,
     'AntBulletEnv' : gym_locomotion_envs.AntBulletEnv,
     'ReacherBulletEnv' : gym_manipulator_envs.ReacherBulletEnv,

@@ -82,13 +82,10 @@ class HybridDeterControl(object):
         with torch.no_grad():
             rho = torch.zeros(1, self.num_states)
             for t in reversed(range(self.T)):
-                rho = dldx[t] + rho.mm(dfdx[t])
+                rho = (0.2**(t)) * dldx[t] + rho.mm(dfdx[t])
                 # self.u[t] = self.u[t] + (dldu[t] + rho.mm(dfdu[t])) * self.eps
                 # self.u[t] = 2.0* log_std_p[t].exp() * rho.mm(dfdu[t])
             # _u = torch.pow(log_std_p[0].exp(),2) * (rho.mm(dfdu[0]))
-            # rho_norm = torch.norm(rho)
-            # if rho_norm > 2.0:
-            #     rho = 2.0 * rho / rho_norm
             rho = torch.clamp(rho, -1,+1)
             sig = torch.pow(log_std_p[0].exp().unsqueeze(0),2)
             _u = sig * rho.mm(dfdu[0])

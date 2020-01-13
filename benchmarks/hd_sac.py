@@ -29,10 +29,12 @@ parser.add_argument('--model_lr',   type=float, default=3e-3)
 parser.add_argument('--policy_lr',  type=float, default=3e-4)
 parser.add_argument('--value_lr',   type=float, default=3e-4)
 parser.add_argument('--soft_q_lr',  type=float, default=3e-4)
+parser.add_argument('--dyn', type=float, default=0.)
 
 parser.add_argument('--horizon', type=int, default=5)
 parser.add_argument('--model_iter', type=int, default=2)
 parser.add_argument('--trajectory_samples', type=int, default=20)
+
 
 
 parser.add_argument('--done_util', dest='done_util', action='store_true')
@@ -114,7 +116,7 @@ if __name__ == '__main__':
     replay_buffer = ReplayBuffer(replay_buffer_size)
 
     model_replay_buffer = SARSAReplayBuffer(replay_buffer_size)
-    model_optim = ModelOptimizer(model, model_replay_buffer, lr=args.model_lr, eps=0.)
+    model_optim = ModelOptimizer(model, model_replay_buffer, lr=args.model_lr, eps=args.dyn)
 
     # model_optim = MDNModelOptimizer(model, replay_buffer, lr=args.model_lr)
 

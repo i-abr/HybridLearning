@@ -87,7 +87,8 @@ class ModelBasedDeterControl(object):
         with torch.no_grad():
             rho = torch.zeros(1, self.num_states)
             for t in reversed(range(self.T)):
-                rho = dldx[t] + rho.mm(dfdx[t])
+                rho = (0.2**(t))*dldx[t] + rho.mm(dfdx[t])
+
                 # self.u[t] = self.u[t] + (dldu[t] + rho.mm(dfdu[t])) * self.eps
                 # self.u[t] = 2.0* log_std_p[t].exp() * rho.mm(dfdu[t])
             # rho_norm = torch.norm(rho)
@@ -96,8 +97,6 @@ class ModelBasedDeterControl(object):
             rho = torch.clamp(rho, -1,+1)
             _u = rho.mm(dfdu[0])
 
-
-        time.sleep(1.0/60.)
         f1,_ = self.model.step(x[0].unsqueeze(0), torch.clamp(self.u[0].unsqueeze(0),-1,+1) )
         f2,_ = self.model.step(x[0].unsqueeze(0), torch.clamp(_u[0].unsqueeze(0),-1,+1))
         return torch.clamp(_u[0], -1, +1).detach().clone().numpy(), rho.mm((f2-f1).T).detach().clone().numpy().squeeze()
