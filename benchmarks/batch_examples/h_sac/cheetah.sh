@@ -8,6 +8,7 @@ do
                 --max_frames 40000 \
                 --horizon 10 \
                 --frame_skip 4 \
-                --no_render
+                --lam 0.2 \
+                --render
     echo "trial $i out of 2"
 done

@@ -34,15 +34,16 @@ class PathIntegral(object):
             for t in range(self.t_H):
                 pi = Normal(mu, log_std.exp())
                 v = pi.sample()
-                log_prob.append(pi.log_prob(self.a[t].expand_as(v)).sum(1))
+                # log_prob.append(pi.log_prob(self.a[t].expand_as(v)).sum(1))
+                log_prob.append(pi.log_prob(v).sum(1))
                 da.append(v - self.a[t].expand_as(v))
                 s, rew = self.model.step(s, v)
                 mu, log_std = self.policy(s)
                 sk.append(-rew.squeeze())
-            
+
             sk = torch.stack(sk)
             sk = torch.cumsum(sk.flip(0), 0).flip(0)
-            
+
             sk = sk - torch.min(sk, dim=1, keepdim=True)[0]
 
             log_prob = torch.stack(log_prob)
@@ -54,6 +55,3 @@ class PathIntegral(object):
                 self.a[t] = self.a[t] + torch.mv(da[t].T, w[t])
 
             return self.a[0].clone().numpy()
-
-
-

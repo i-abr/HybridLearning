@@ -33,6 +33,7 @@ parser.add_argument('--soft_q_lr',  type=float, default=3e-4)
 parser.add_argument('--horizon', type=int, default=5)
 parser.add_argument('--model_iter', type=int, default=2)
 parser.add_argument('--trajectory_samples', type=int, default=20)
+parser.add_argument('--lam',  type=float, default=0.1)
 
 
 parser.add_argument('--done_util', dest='done_util', action='store_true')
@@ -127,7 +128,7 @@ if __name__ == '__main__':
                           value_lr=args.value_lr,
                           soft_q_lr=args.soft_q_lr)
 
-    planner = PathIntegral(model, policy_net, samples=args.trajectory_samples, t_H=args.horizon, lam=0.1)
+    planner = PathIntegral(model, policy_net, samples=args.trajectory_samples, t_H=args.horizon, lam=args.lam)
 
     max_frames  = args.max_frames
     max_steps   = args.max_steps
