@@ -1,0 +1,142 @@
+#! /usr/bin/env python
+
+# based on Rethink Robotics go_to_cartesian_pose.py
+# Copyright (c) 2016-2018, Rethink Robotics Inc.
+
+"""
+Move the robot arm to the new position relative to the prior position specified
+in the topic /puck/relative_move.
+
+Call using:
+$ rosrun sawyer ik_move
+
+Publish position commmands using:
+$ rostopic pub /puck/pose sawyer/Move "dx: 0.1
+dy: 0.
+linear_speed: 0.5"
+"""
+import rospy
+from geometry_msgs.msg import (
+    PoseStamped,
+    Pose,
+    Point,
+    Quaternion,
+)
+from std_msgs.msg import Header, UInt16
+from sensor_msgs.msg import JointState
+
+from intera_core_msgs.srv import (
+    SolvePositionIK,
+    SolvePositionIKRequest,
+)
+from intera_core_msgs.msg import JointCommand
+
+from sawyer.msg import RelativeMove
+import PyKDL # for relative pose movements...
+from tf_conversions import posemath # for relative pose movements...
+from intera_interface import Limb
+
+
+class go_to_pose(object):
+    def __init__(self):
+        # set up ik solver
+        limb = "right"
+        ns = "ExternalTools/" + limb + "/PositionKinematicsNode/IKService"
+        self.iksvc = rospy.ServiceProxy(ns, SolvePositionIK)
+        rospy.wait_for_service(ns, 5.0)
+
+        # set up sawyer
+        self.limb = Limb()
+        self.in_tip_frame = False
+        self.tip_name = 'right_hand'
+        self.endpoint_state = self.limb.tip_state(self.tip_name)
+        if self.endpoint_state is None:
+            rospy.logerr('Endpoint state not found with tip name %s', self.tip_name)
+
+        # set up timing
+        self.limb.set_command_timeout = 0.2
+        # self.pub_rate = rospy.Publisher('robot/joint_state_publish_rate',
+        #                                  UInt16, queue_size=10)
+        # self.rate = 500 # Hz
+        # self.pub_rate.publish(self.rate)
+
+        # setup ros
+        rospy.Subscriber('/puck/relative_move',RelativeMove,self.pose_callback)
+
+        # set up controller
+        self.c = 0.5
+        self.alpha = 0.6 # [0,1]
+        self.joint_names = self.limb.joint_names()
+        self.delta_theta = dict()
+        for name in self.joint_names:
+            self.delta_theta[name] = 0.0
+
+    def pose_callback(self,data):
+
+        # solve inverse kinematics
+        ikreq = SolvePositionIKRequest()
+        current_pose = self.endpoint_state.pose # get current state
+
+        # relative move
+        # create kdl frame from relative pose
+        rot = PyKDL.Rotation.RPY(0.0,0.0,0.0) # roll, pitch, yaw
+        trans = PyKDL.Vector(data.dx, data.dy, 0.0) # x,y,z
+        f2 = PyKDL.Frame(rot, trans)
+
+        # and convert the result back to a pose message
+        if self.in_tip_frame: # end effector frame
+            pose = posemath.toMsg(posemath.fromMsg(current_pose) * f2)
+        else: # base frame
+            pose = posemath.toMsg(f2 * posemath.fromMsg(current_pose))
+
+        # create stamped pose with updated pose
+        poseStamped = PoseStamped()
+        poseStamped.header = Header(stamp=rospy.Time.now(), frame_id='base')
+        poseStamped.pose = pose
+
+        # Add desired pose for inverse kinematics
+        ikreq.pose_stamp.append(poseStamped)
+        ikreq.tip_names.append('right_hand') # for each pose in IK
+
+        try:
+            resp = self.iksvc(ikreq)
+
+            # Check if result valid, and type of seed ultimately used to get solution
+            if (resp.result_type[0] > 0):
+                limb_joints = dict(zip(resp.joints[0].name, resp.joints[0].position))
+                # rospy.loginfo("Response Message:\n%s", resp)
+                self.update_velocities(limb_joints)
+            else:
+                rospy.logerr("INVALID POSE - No Valid Joint Solution Found.")
+                rospy.logerr("Result Error %d", resp.result_type[0])
+
+        except (rospy.ServiceException, rospy.ROSException), e:
+            rospy.logerr("Service call failed: %s" % (e,))
+
+    def update_velocities(self,desired_theta):
+        joint_velocities = dict()
+        delta_theta_raw = dict()
+        current_theta = self.limb.joint_angles()
+
+        for name in self.joint_names:
+            delta_theta_raw[name] = desired_theta[name] - current_theta[name]
+            self.delta_theta[name] = self.alpha*self.delta_theta[name] + (1-self.alpha)*delta_theta_raw[name]
+            joint_velocities[name] = self.c*self.delta_theta[name]
+            # joint_velocities[name] = self.c*delta_theta_raw[name]
+
+        # rospy.loginfo("New Velocities: %s", joint_velocities)
+        # rospy.loginfo("------------")
+
+        self.limb.set_joint_velocities(joint_velocities)
+
+
+def main():
+    rospy.init_node('ik_move')
+    my_pose = go_to_pose()
+    rospy.spin()
+
+if __name__ == '__main__':
+    try:
+        main()
+    except rospy.ROSInterruptException:
+        pass

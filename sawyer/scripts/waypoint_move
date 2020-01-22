@@ -1,0 +1,127 @@
+#! /usr/bin/env python
+
+# based on Rethink Robotics go_to_cartesian_pose.property
+# Copyright (c) 2016-2018, Rethink Robotics Inc.
+
+"""
+Move the robot arm to the specified configuration in the topic /puck/pose.
+- Currently only readng in pose position (x, y, z [meters])
+- Can add options:
+    - pose orientation (quaternion) or could specify with rpy [rad] and
+      convert to orientation in the node
+    - specify joint angles directly
+    - jog arm with relative pose (in tip frame by xyz [meters] rpy [rad])
+
+Call using:
+$ rosrun sawyer go_to_cartesian_pose
+
+Publish position commmands using:
+$ rostopic pub /puck/move sawyer/Move "position:
+  x: 0.4
+  y: 0.2
+  z: .18
+linear_speed: 0.5"
+
+Can compare to:
+# use intera_examples function to move end effector to a specific cartesian pose
+# pose: -p x y z
+# orientation: -o w x y z (optional)
+# tip name: -t right_hand (optional, default is right_hand)
+rosrun intera_examples go_to_cartesian_pose.py -p 0.4 -0.3 0.18 -o 0.0 1.0 0.0 0.0 -t right_hand
+
+"""
+
+import rospy
+from intera_motion_interface import (
+    MotionTrajectory,
+    MotionWaypoint,
+    MotionWaypointOptions
+)
+from intera_motion_msgs.msg import TrajectoryOptions
+from geometry_msgs.msg import PoseStamped, Pose
+from sawyer.msg import Move
+# import PyKDL # for relative pose movements...
+# from tf_conversions import posemath # for relative pose movements...
+from intera_interface import Limb
+
+class go_to_pose(object):
+    def __init__(self):
+        # set up defaults
+        self.tip_name = 'right_hand' # The tip name used by the Cartesian pose
+        self.linear_speed = 0.6  # The max linear speed of the endpoint (m/s)
+        self.linear_accel = 0.6 # The max linear acceleration of the endpoint (m/s/s)
+        self.rotational_speed = 1.57 # The max rotational speed of the endpoint (rad/s)
+        self.rotational_accel = 1.57 # The max rotational acceleration of the endpoint (rad/s/s)
+        self.timeout = None # Max time in seconds to complete motion goal before returning. None is interpreted as an infinite timeout.
+
+        # Set up sawyer
+        self.limb = Limb()
+
+        traj_options = TrajectoryOptions()
+        traj_options.interpolation_type = TrajectoryOptions.CARTESIAN
+        self.traj = MotionTrajectory(trajectory_options = traj_options, limb = self.limb)
+
+        self.endpoint_state = self.limb.tip_state(self.tip_name)
+        if self.endpoint_state is None:
+            rospy.logerr('Endpoint state not found with tip name %s', self.tip_name)
+            return None
+
+        # setup ros
+        rospy.Subscriber('/puck/move',Move,self.pose_callback)
+
+    def pose_callback(self,data):
+
+        self.wpt_opts = MotionWaypointOptions(max_linear_speed=data.linear_speed,
+                                              max_linear_accel=self.linear_accel,
+                                              max_rotational_speed=self.rotational_speed,
+                                              max_rotational_accel=self.rotational_accel,
+                                              max_joint_speed_ratio=1.0)
+
+        self.waypoint = MotionWaypoint(options = self.wpt_opts.to_msg(), limb = self.limb)
+
+        # get current state
+        pose = self.endpoint_state.pose
+        # update pose with subscribe position (not currently using angle)
+        pose.position = data.position
+
+        # create stamped pose with updated pose
+        poseStamped = PoseStamped()
+        poseStamped.pose = pose
+
+        # using current joint angles for now
+        joint_angles = self.limb.joint_ordered_angles()
+        self.waypoint.set_cartesian_pose(poseStamped, self.tip_name, joint_angles)
+
+        # print out waypoint
+        rospy.loginfo('Sending waypoint: \n%s', self.waypoint.to_string())
+
+        # add waypoint to trajectory
+        self.traj.append_waypoint(self.waypoint.to_msg())
+
+        # send trajectory
+        result = self.traj.send_trajectory(timeout=self.timeout)
+
+        # give warnings for results as needed
+        if result is None:
+            rospy.logerr('Trajectory FAILED to send')
+            return
+
+        if result.result:
+            rospy.loginfo('Motion controller successfully finished the trajectory!')
+        else:
+            rospy.logerr('Motion controller failed to complete the trajectory with error %s',
+                         result.errorId)
+
+        # clear trajectory
+        self.traj.clear_waypoints()
+
+def main():
+    rospy.init_node('go_to_cartesian_pose')
+    my_pose = go_to_pose()
+    rospy.spin()
+
+if __name__ == '__main__':
+    try:
+        main()
+    except rospy.ROSInterruptException:
+        pass

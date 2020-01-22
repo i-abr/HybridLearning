@@ -1,0 +1,52 @@
+#! /usr/bin/env python
+
+# based on Rethink Robotics go_to_cartesian_pose.property
+# Copyright (c) 2016-2018, Rethink Robotics Inc.
+
+"""
+Publish trajectory to the robot arm to test relative_move
+Call using:
+$ rosrun sawyer test_traj
+"""
+
+import rospy
+import numpy as np
+from sawyer.msg import RelativeMove
+from tf_conversions import posemath # for relative pose movements...
+
+def main():
+    rospy.init_node('mover')
+    move = rospy.Publisher('/puck/relative_move',RelativeMove,queue_size=1)
+    pose = RelativeMove()
+    traj = 1 # 0 = figure 8, 1 = box
+
+    a = 3 # figure 8 scale
+    count = 0
+    sign = 1 # switching mode for rectangle
+
+    rate=rospy.Rate(20)
+    while not rospy.is_shutdown():
+        if (traj==0): # figure 8
+            pose.dx = a*np.sin(count) -  a*np.sin(count-.1)
+            pose.dy = a*np.sin(2*count)/2 - a*np.sin(2*(count-.1))/2
+            count += 0.
+        elif (traj==1): # box
+            if count < 30:
+                pose.dx = 0.2*sign
+                pose.dy = 0.
+            elif count < 60:
+                pose.dx = 0.
+                pose.dy = 0.2*sign
+            else:
+                count = 0
+                sign *= -1
+            count += 1
+
+        move.publish(pose)
+        rate.sleep()
+
+if __name__ == '__main__':
+    try:
+        main()
+    except rospy.ROSInterruptException:
+        pass
