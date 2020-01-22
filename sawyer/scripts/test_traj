@@ -24,19 +24,19 @@ def main():
     count = 0
     sign = 1 # switching mode for rectangle
 
-    rate=rospy.Rate(20)
+    rate=rospy.Rate(10)
     while not rospy.is_shutdown():
         if (traj==0): # figure 8
             pose.dx = a*np.sin(count) -  a*np.sin(count-.1)
             pose.dy = a*np.sin(2*count)/2 - a*np.sin(2*(count-.1))/2
-            count += 0.
+            count += 0.1
         elif (traj==1): # box
             if count < 30:
-                pose.dx = 0.2*sign
+                pose.dx = 0.05*sign
                 pose.dy = 0.
-            elif count < 60:
+            elif count < 40:
                 pose.dx = 0.
-                pose.dy = 0.2*sign
+                pose.dy = 0.05*sign
             else:
                 count = 0
                 sign *= -1

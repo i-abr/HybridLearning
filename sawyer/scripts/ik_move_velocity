@@ -55,39 +55,48 @@ class go_to_pose(object):
 
         # set up timing
         self.limb.set_command_timeout = 0.2
-        # self.pub_rate = rospy.Publisher('robot/joint_state_publish_rate',
-        #                                  UInt16, queue_size=10)
-        # self.rate = 500 # Hz
-        # self.pub_rate.publish(self.rate)
 
         # setup ros
         rospy.Subscriber('/puck/relative_move',RelativeMove,self.pose_callback)
 
         # set up controller
         self.c = 0.5
-        self.alpha = 0.6 # [0,1]
+        self.alpha = 0.5 # [0,1]
         self.joint_names = self.limb.joint_names()
         self.delta_theta = dict()
         for name in self.joint_names:
             self.delta_theta[name] = 0.0
 
+        # initalize with current joint angles
+        self.desired_theta = self.limb.joint_angles()
+
+        self.update_velocities();
+
     def pose_callback(self,data):
 
         # solve inverse kinematics
         ikreq = SolvePositionIKRequest()
-        current_pose = self.endpoint_state.pose # get current state
+
+        current_pose = Limb().tip_state(self.tip_name).pose # get current state
+        rospy.loginfo("Current Pose:\n%s", current_pose)
 
         # relative move
         # create kdl frame from relative pose
-        rot = PyKDL.Rotation.RPY(0.0,0.0,0.0) # roll, pitch, yaw
-        trans = PyKDL.Vector(data.dx, data.dy, 0.0) # x,y,z
-        f2 = PyKDL.Frame(rot, trans)
+        # rot = PyKDL.Rotation.RPY(0.0,0.0,0.0) # roll, pitch, yaw
+        # trans = PyKDL.Vector(data.dx, data.dy, 0.0) # x,y,z
+        # f2 = PyKDL.Frame(rot, trans)
+        # rospy.loginfo("KDL:\n%s", f2)
+        #
+        # # and convert the result back to a pose message
+        # if self.in_tip_frame: # end effector frame
+        #     pose = posemath.toMsg(posemath.fromMsg(current_pose) * f2)
+        # else: # base frame
+        #     pose = posemath.toMsg(f2 * posemath.fromMsg(current_pose))
 
-        # and convert the result back to a pose message
-        if self.in_tip_frame: # end effector frame
-            pose = posemath.toMsg(posemath.fromMsg(current_pose) * f2)
-        else: # base frame
-            pose = posemath.toMsg(f2 * posemath.fromMsg(current_pose))
+        pose = current_pose
+        pose.position.x += data.dx
+        pose.position.y += data.dy
+        rospy.loginfo("Updated Pose:\n%s", pose)
 
         # create stamped pose with updated pose
         poseStamped = PoseStamped()
@@ -105,7 +114,7 @@ class go_to_pose(object):
             if (resp.result_type[0] > 0):
                 limb_joints = dict(zip(resp.joints[0].name, resp.joints[0].position))
                 # rospy.loginfo("Response Message:\n%s", resp)
-                self.update_velocities(limb_joints)
+                self.desired_theta = limb_joints
             else:
                 rospy.logerr("INVALID POSE - No Valid Joint Solution Found.")
                 rospy.logerr("Result Error %d", resp.result_type[0])
@@ -113,22 +122,24 @@ class go_to_pose(object):
         except (rospy.ServiceException, rospy.ROSException), e:
             rospy.logerr("Service call failed: %s" % (e,))
 
-    def update_velocities(self,desired_theta):
+    def update_velocities(self):
         joint_velocities = dict()
         delta_theta_raw = dict()
-        current_theta = self.limb.joint_angles()
 
-        for name in self.joint_names:
-            delta_theta_raw[name] = desired_theta[name] - current_theta[name]
-            self.delta_theta[name] = self.alpha*self.delta_theta[name] + (1-self.alpha)*delta_theta_raw[name]
-            joint_velocities[name] = self.c*self.delta_theta[name]
-            # joint_velocities[name] = self.c*delta_theta_raw[name]
+        rate=rospy.Rate(50)
+        while not rospy.is_shutdown():
+            current_theta = self.limb.joint_angles()
 
-        # rospy.loginfo("New Velocities: %s", joint_velocities)
-        # rospy.loginfo("------------")
+            for name in self.joint_names:
+                delta_theta_raw[name] = self.desired_theta[name] - current_theta[name]
+                self.delta_theta[name] = self.alpha*self.delta_theta[name] + (1-self.alpha)*delta_theta_raw[name]
+                joint_velocities[name] = self.c*self.delta_theta[name]
+                # joint_velocities[name] = self.c*delta_theta_raw[name]
 
-        self.limb.set_joint_velocities(joint_velocities)
-
+            # rospy.loginfo("New Velocities: %s", joint_velocities)
+            # rospy.loginfo("------------")
+            self.limb.set_joint_velocities(joint_velocities)
+            rate.sleep()
 
 def main():
     rospy.init_node('ik_move')
