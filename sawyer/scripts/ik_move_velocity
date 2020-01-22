@@ -16,25 +16,25 @@ dy: 0.
 linear_speed: 0.5"
 """
 import rospy
-from geometry_msgs.msg import (
-    PoseStamped,
-    Pose,
-    Point,
-    Quaternion,
-)
+import numpy as np
+
+# messages
+from geometry_msgs.msg import PoseStamped, Pose, Point, Quaternion
 from std_msgs.msg import Header, UInt16
 from sensor_msgs.msg import JointState
 
-from intera_core_msgs.srv import (
-    SolvePositionIK,
-    SolvePositionIKRequest,
-)
-from intera_core_msgs.msg import JointCommand
+# services
+from std_srvs.srv import Empty, EmptyResponse
 
+# sawyer
+from intera_core_msgs.srv import SolvePositionIK, SolvePositionIKRequest
+from intera_core_msgs.msg import JointCommand
 from sawyer.msg import RelativeMove
-import PyKDL # for relative pose movements...
-from tf_conversions import posemath # for relative pose movements...
 from intera_interface import Limb
+
+# tf
+import PyKDL # for relative pose movements...
+from tf_conversions import posemath, transformations # for relative pose movements...
 
 
 class go_to_pose(object):
@@ -47,16 +47,15 @@ class go_to_pose(object):
 
         # set up sawyer
         self.limb = Limb()
+        self.limb.set_command_timeout = 0.2
         self.in_tip_frame = False
         self.tip_name = 'right_hand'
         self.endpoint_state = self.limb.tip_state(self.tip_name)
         if self.endpoint_state is None:
             rospy.logerr('Endpoint state not found with tip name %s', self.tip_name)
 
-        # set up timing
-        self.limb.set_command_timeout = 0.2
-
         # setup ros
+        # s = rospy.Service('/puck/reset', Empty, self.reset)
         rospy.Subscriber('/puck/relative_move',RelativeMove,self.pose_callback)
 
         # set up controller
@@ -69,8 +68,14 @@ class go_to_pose(object):
 
         # initalize with current joint angles
         self.desired_theta = self.limb.joint_angles()
+        self.home_orientation = Quaternion(0, 1, 0, 0)
+        self.last_theta = 0
+        # home_pose = [-0.2, -0.6, 0.0, 1.9, 0.0, 0.3, 1.571];
+        # self.home_joints = dict(zip(self.joint_names, home_pose))
+        # self.limb.set_joint_position_speed(speed=0.6)
+        # self.limb.set_joint_positions(self.home_joints)
 
-        self.update_velocities();
+        self.update_velocities()
 
     def pose_callback(self,data):
 
@@ -82,7 +87,9 @@ class go_to_pose(object):
 
         # relative move
         # create kdl frame from relative pose
-        # rot = PyKDL.Rotation.RPY(0.0,0.0,0.0) # roll, pitch, yaw
+        theta = np.arctan2(data.dy, data.dx)
+
+        # rot = PyKDL.Rotation.RPY(0.0,0.0,theta) # roll, pitch, yaw
         # trans = PyKDL.Vector(data.dx, data.dy, 0.0) # x,y,z
         # f2 = PyKDL.Frame(rot, trans)
         # rospy.loginfo("KDL:\n%s", f2)
@@ -93,7 +100,25 @@ class go_to_pose(object):
         # else: # base frame
         #     pose = posemath.toMsg(f2 * posemath.fromMsg(current_pose))
 
+        if (data.dy == 0):
+            orientation = self.home_orientation
+        elif (abs(theta) == abs(self.last_theta)):
+            orientation = current_pose.orientation
+        else:
+            quaternion = (self.home_orientation.x, self.home_orientation.y,
+                          self.home_orientation.z, self.home_orientation.w)
+            euler = transformations.euler_from_quaternion(quaternion)
+
+            orientation = Quaternion(*transformations.quaternion_from_euler(euler[0], euler[1], euler[2]+theta))
+
+            # rospy.loginfo("theta:\n%s", theta)
+            # rospy.loginfo("home orientation?:\n%s", euler)
+            # rospy.loginfo("orientation?:\n%s", orientation)
+
+        self.last_theta = theta
+
         pose = current_pose
+        pose.orientation =  orientation
         pose.position.x += data.dx
         pose.position.y += data.dy
         rospy.loginfo("Updated Pose:\n%s", pose)
@@ -140,6 +165,14 @@ class go_to_pose(object):
             # rospy.loginfo("------------")
             self.limb.set_joint_velocities(joint_velocities)
             rate.sleep()
+
+    # def reset(self,req):
+    #     for name in self.joint_names:
+    #         self.delta_theta[name] = 0.0
+    #     self.limb.exit_control_mode()
+    #     self.limb.set_joint_position_speed(speed=0.3)
+    #     self.limb.set_joint_positions(self.home_joints)
+    #     return EmptyResponse()
 
 def main():
     rospy.init_node('ik_move')
