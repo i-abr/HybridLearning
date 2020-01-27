@@ -47,7 +47,8 @@ parser.set_defaults(done_util=True)
 args = parser.parse_args()
 
 # sawyer
-from sawyer.msg import RelativeMove, State
+import rospy
+from sawyer.msg import RelativeMove
 from geometry_msgs.msg import Pose2D
 from std_srvs.srv import Empty, EmptyResponse
 import tf
@@ -75,11 +76,8 @@ class april_tags(object):
         rospy.loginfo("Target tf: %s", target_transform)
         rospy.loginfo("EE tf: %s", ee_transform)
 
-        state = State()
-        state.dx_targetToArm = ee_transform[0]
-        state.dy_targetToArm= ee_transform[1]
-        state.dx_targetToBlock = target_transform[0]
-        state.dy_targetToBlock = target_transform[1]
+        state = np.array([ee_transform[0],ee_transform[1],target_transform[0],target_transform[1]])
+        # state = np.array([dx_targetToArm, dy_targetToArm, dx_targetToBlock, dy_targetToBlock])
         return state
 
 class sawer_env(object):
@@ -91,30 +89,32 @@ class sawer_env(object):
 
     def reset(self):
         resp = self.reset_arm()
-        state = aprilTags.get_transforms()
+        state = self.aprilTags.get_transforms()
         return state
 
     def step(self, action):
         # publishes action input
         pose = RelativeMove()
-        pose.dx = action.dx
-        pose.dy = action.dy
+        pose.dx = action[0]
+        pose.dy = action[1]
         move.publish(pose)
         # gets the new state
-        state = aprilTags.get_transforms()
+        state = self.aprilTags.get_transforms()
         reward = self.reward_function(state)
         if (reward > -0.25):
             done = 1
         else:
             done = 0
-        return next_state, reward, done, _
+        return next_state, reward, done
 
         # returns reward state and if it's outside bounds
     def reward_function(self,state):
-        arm_to_block = -((state.dx_targetToArm-state.dx_targetToBlock)**2+
-                        (state.dy_targetToArm-state.dy_targetToBlock)**2)*100
+        [dx_targetToArm, dy_targetToArm, dx_targetToBlock, dy_targetToBlock] = state
 
-        block_to_target = -(state.dx_targetToBlock**2+state.dy_targetToBlock**2)*100
+        arm_to_block = -((dx_targetToArm-dx_targetToBlock)**2+
+                        (dy_targetToArm-dy_targetToBlock)**2)*100
+
+        block_to_target = -(dx_targetToBlock**2+dy_targetToBlock**2)*100
 
         if (arm_to_block > -.25):
             reward = arm_to_block
@@ -139,7 +139,6 @@ if __name__ == '__main__':
     policy_net = PolicyNetwork(state_dim, action_dim, hidden_dim)
 
     model = Model(state_dim, action_dim, def_layers=[200])
-
 
     replay_buffer_size = 1000000
     replay_buffer = ReplayBuffer(replay_buffer_size)
@@ -175,7 +174,7 @@ if __name__ == '__main__':
         episode_reward = 0
         for step in range(max_steps):
             for _ in range(frame_skip):
-                next_state, reward, done, _ = env.step(action.copy())
+                next_state, reward, done = env.step(action.copy())
 
 
             next_action = planner(next_state)
