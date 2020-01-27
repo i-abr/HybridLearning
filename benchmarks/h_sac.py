@@ -13,7 +13,7 @@ import torch
 from sac import SoftActorCritic
 from sac import PolicyNetwork
 from sac import ReplayBuffer
-from sac import NormalizedActions
+# from sac import NormalizedActions
 from hybrid_stochastic import PathIntegral
 from model import ModelOptimizer, Model, SARSAReplayBuffer
 # from model import MDNModelOptimizer, MDNModel
@@ -82,7 +82,7 @@ class april_tags(object):
 
 class sawer_env(object):
     def __init__(self):
-        aprilTags = april_tags()
+        self.aprilTags = april_tags()
         self.move = rospy.Publisher('/puck/relative_move',RelativeMove,queue_size=1)
         self.reset_arm = rospy.ServiceProxy('/puck/reset', Empty)
         rospy.wait_for_service('/puck/reset', 5.0)
@@ -92,12 +92,13 @@ class sawer_env(object):
         state = self.aprilTags.get_transforms()
         return state
 
-    def step(self, action):
+    def step(self, _a):
+        action = 0.2*np.clip(_a, -1,1)
         # publishes action input
         pose = RelativeMove()
         pose.dx = action[0]
         pose.dy = action[1]
-        move.publish(pose)
+        self.move.publish(pose)
         # gets the new state
         state = self.aprilTags.get_transforms()
         reward = self.reward_function(state)
@@ -105,7 +106,7 @@ class sawer_env(object):
             done = 1
         else:
             done = 0
-        return next_state, reward, done
+        return state, reward, done
 
         # returns reward state and if it's outside bounds
     def reward_function(self,state):
@@ -123,7 +124,13 @@ class sawer_env(object):
 
         return reward
 
+
 if __name__ == '__main__':
+
+    rospy.init_node('h_sac')
+    env = sawer_env()
+    manual_done = rospy.Service('/puck/done', Empty, doneCallback)
+
     env_name = 'sawyer'
     now = datetime.now()
     date_str = now.strftime("%Y-%m-%d_%H-%M-%S/")
@@ -131,6 +138,7 @@ if __name__ == '__main__':
     path = './data/' + env_name +  '/' + 'h_sac/' + date_str
     if os.path.exists(path) is False:
         os.makedirs(path)
+
 
     action_dim = 2 # env.action_space.shape[0]
     state_dim  = 4 # env.observation_space.shape[0]

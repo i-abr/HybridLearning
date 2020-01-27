@@ -1,6 +1,6 @@
 ## General
 # source robot
-source ~/murphey_lab/sawyer_ws/src/sawyer/robot.bash
+source ~/murphey_lab/sawyer_ws/src/SMPO/sawyer/robot.bash
 # check connetion
 ping 10.42.0.2
 # check status/enable/disable robot
@@ -9,11 +9,9 @@ rosrun intera_interface enable_robot.py -s
 # source workspace
 source ~/murphey_lab/sawyer_ws/devel/setup.bash
 
-# run camera interface
+# run camera interface and run ik_solver
 roslaunch sawyer init_cam_n_track.launch
 
-# run ik_solvers
-rosrun sawyer ik_move_velocity
 
 # to control arm...
 # 1. run test script
@@ -24,12 +22,6 @@ rosservice call /puck/reset
 rostopic pub /puck/relative_move sawyer/RelativeMove "dx: 0.0
 dy: 0.1"
 
-## to run test, need:
-# run camera interface
-roslaunch sawyer init_cam_n_track.launch
-
-# run ik_solvers
-rosrun sawyer ik_move_velocity
 
 # modified h_sac.py to run test
 

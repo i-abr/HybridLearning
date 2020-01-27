@@ -59,7 +59,7 @@ class go_to_pose(object):
 
         # set up controller
         self.c = 0.5
-        self.alpha = 0.5 # [0,1]
+        self.alpha = 0.8 # [0,1]
         self.joint_names = self.limb.joint_names()
         self.delta_theta = dict()
         for name in self.joint_names:
@@ -171,17 +171,63 @@ class go_to_pose(object):
 
     def reset(self,req):
         self.reset_arm = 1
+
+        # change to position mode
+        # move up
+        vertical_joints = self.move_up()
+        self.limb.set_joint_position_speed(speed=0.1)
+        self.limb.move_to_joint_positions(vertical_joints, timeout=15.0)
+        time.sleep(2)
+
+        # reset parameters
         for name in self.joint_names:
             self.delta_theta[name] = 0.0
         self.desired_theta = self.home_joints
         self.last_theta = 0
 
-        self.limb.set_joint_position_speed(speed=0.3)
+        # move to home
+        self.limb.set_joint_position_speed(speed=0.2)
         self.limb.move_to_joint_positions(self.home_joints, timeout=15.0)
         rospy.loginfo("Reset Pose")
         time.sleep(2)
         self.reset_arm = 0
         return EmptyResponse()
+
+    def move_up(self):
+        # solve inverse kinematics
+        ikreq = SolvePositionIKRequest()
+
+        current_pose = Limb().tip_state(self.tip_name).pose # get current state
+
+        pose = current_pose
+        pose.position.z += 0.05
+
+        # create stamped pose with updated pose
+        poseStamped = PoseStamped()
+        poseStamped.header = Header(stamp=rospy.Time.now(), frame_id='base')
+        poseStamped.pose = pose
+
+        # Add desired pose for inverse kinematics
+        ikreq.pose_stamp.append(poseStamped)
+        ikreq.tip_names.append('right_hand') # for each pose in IK
+
+        try:
+            resp = self.iksvc(ikreq)
+
+            # Check if result valid, and type of seed ultimately used to get solution
+            if (resp.result_type[0] > 0):
+                limb_joints = dict(zip(resp.joints[0].name, resp.joints[0].position))
+                # rospy.loginfo("Response Message:\n%s", resp)
+                self.desired_theta = limb_joints
+            else:
+                rospy.logerr("INVALID POSE - No Valid Joint Solution Found.")
+                rospy.logerr("Result Error %d", resp.result_type[0])
+
+        except (rospy.ServiceException, rospy.ROSException), e:
+            rospy.logerr("Service call failed: %s" % (e,))
+
+        return limb_joints
+
 
 def main():
     rospy.init_node('ik_move')
