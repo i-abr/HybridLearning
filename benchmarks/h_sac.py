@@ -46,16 +46,82 @@ parser.set_defaults(done_util=True)
 
 args = parser.parse_args()
 
+# sawyer
+from sawyer.msg import RelativeMove, State
+from geometry_msgs.msg import Pose2D
+from std_srvs.srv import Empty, EmptyResponse
+import tf
+import time
+
+class april_tags(object):
+    def __init__(self):
+        self.listener = tf.TransformListener()
+
+    def get_transform_between_frames(self, reference_frame, target_frame):
+        time_out = 0.3
+        start_time = time.time()
+        while(True):
+            try:
+                translation, rot_quaternion = self.listener.lookupTransform(reference_frame, target_frame, rospy.Time(0))
+                break
+            except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
+                if((time.time()- start_time) > time_out):
+                    return None
+        return translation
+
+    def get_transforms(self):
+        target_transform = self.get_transform_between_frames( 'target','block2')
+        ee_transform = self.get_transform_between_frames('target','ee')
+        rospy.loginfo("Target tf: %s", target_transform)
+        rospy.loginfo("EE tf: %s", ee_transform)
+
+        state = State()
+        state.dx_targetToArm = ee_transform[0]
+        state.dy_targetToArm= ee_transform[1]
+        state.dx_targetToBlock = target_transform[0]
+        state.dy_targetToBlock = target_transform[1]
+        return state
 
 class sawer_env(object):
-    def init:
-    # include lookup table
+    def __init__(self):
+        aprilTags = april_tags()
+        self.move = rospy.Publisher('/puck/relative_move',RelativeMove,queue_size=1)
+        self.reset_arm = rospy.ServiceProxy('/puck/reset', Empty)
+        rospy.wait_for_service('/puck/reset', 5.0)
+
     def reset(self):
+        resp = self.reset_arm()
+        state = aprilTags.get_transforms()
+        return state
 
     def step(self, action):
         # publishes action input
+        pose = RelativeMove()
+        pose.dx = action.dx
+        pose.dy = action.dy
+        move.publish(pose)
+        # gets the new state
+        state = aprilTags.get_transforms()
+        reward = self.reward_function(state)
+        if (reward > -0.25):
+            done = 1
+        else:
+            done = 0
+        return next_state, reward, done, _
+
         # returns reward state and if it's outside bounds
-    def cost_function(self):
+    def reward_function(self,state):
+        arm_to_block = -((state.dx_targetToArm-state.dx_targetToBlock)**2+
+                        (state.dy_targetToArm-state.dy_targetToBlock)**2)*100
+
+        block_to_target = -(state.dx_targetToBlock**2+state.dy_targetToBlock**2)*100
+
+        if (arm_to_block > -.25):
+            reward = arm_to_block
+        else:
+            reward = block_to_target
+
+        return reward
 
 if __name__ == '__main__':
     env_name = 'sawyer'

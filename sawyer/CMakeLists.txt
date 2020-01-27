@@ -60,6 +60,7 @@ add_message_files(
   FILES
   Move.msg
   RelativeMove.msg
+  State.msg
 #   Message2.msg
 )
 
@@ -180,6 +181,7 @@ include_directories(
 ## Mark executable scripts (Python etc.) for installation
 ## in contrast to setup.py, you can choose the destination
 install(PROGRAMS
+  scripts/april_tags
   scripts/ik_move_position
   scripts/ik_move_velocity
   scripts/test_traj

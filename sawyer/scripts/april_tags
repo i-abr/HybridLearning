@@ -10,6 +10,7 @@ import rospy
 import tf
 import numpy as np
 from geometry_msgs.msg import Pose2D
+from sawyer.msg import RelativeMove, State
 
 class april_tags:
     def __init__(self):
@@ -39,17 +40,35 @@ class april_tags:
         return translation_vector
 
     def get_tranforms(self):
-        target_to_tag_transform = self.get_transform_between_frames('block2', 'target')
-        tag_to_ee_transform = self.get_transform_between_frames('block2', 'ee')
-        rospy.loginfo("Target tf: %s", target_to_tag_transform)
-        rospy.loginfo("EE tf: %s", tag_to_ee_transform)
+        target_transform = self.get_transform_between_frames( 'target','block2')
+        ee_transform = self.get_transform_between_frames('target','ee')
+        rospy.loginfo("Target tf: %s", target_transform)
+        rospy.loginfo("EE tf: %s", ee_transform)
 
+        state = State()
+        state.dx_targetToArm = ee_transform[0]
+        state.dy_targetToArm= ee_transform[1]
+        state.dx_targetToBlock = target_transform[0]
+        state.dy_targetToBlock = target_transform[1]
+
+        # state
+        rospy.loginfo("State: \n%s", state)
+
+        # reward
+        arm_to_block = -((state.dx_targetToArm-state.dx_targetToBlock)**2+
+                        (state.dy_targetToArm-state.dy_targetToBlock)**2)*100
+
+        block_to_target = -(state.dx_targetToBlock**2+state.dy_targetToBlock**2)*100
+
+        rospy.loginfo("Reward: \narm_to_block distance: %s \nblock_to_target distance: %s", arm_to_block,block_to_target)
+
+        return state
 
 def main():
     rospy.init_node('computer_vision')
     aprilTags = april_tags()
-    aprilTags.get_tranforms()
-    rospy.spin()
+    state = aprilTags.get_tranforms()
+    # rospy.spin()
 
 if __name__=='__main__':
     try:

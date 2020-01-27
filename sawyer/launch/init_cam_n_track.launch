@@ -1,5 +1,9 @@
 <launch>
-    <!-- This node launches the usb camera at video node 1 -->
+
+    <arg name="image_viewer" default ="False" />
+    <arg name="rviz" default ="True" />
+
+    <!-- This node launches the usb camera at video node 2 -->
     <node name="usb_cam1" pkg="usb_cam" type="usb_cam_node" output="screen" >
         <param name="video_device" value="/dev/video2" />
         <param name="image_width" value="640" />
@@ -11,7 +15,7 @@
 
 
     <!-- This here publishes the image  -->
-    <node name="image_view1" pkg="image_view" type="image_view" respawn="false" output="screen">
+    <node name="image_view1" pkg="image_view" type="image_view" respawn="false" output="screen" if="$(arg image_viewer)">
         <remap from="image" to="/usb_cam1/image_raw"/>
         <param name="autosize" value="true" />
     </node>
@@ -43,5 +47,8 @@
 
     <!-- <node pkg="sawyer" name="obj_pose_pub" type="obj_pose_pub.py" output="screen">
     </node> -->
+
+    <!-- This here opens rviz  -->
+    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find sawyer)/config/april_tags.rviz" if="$(arg rviz)" />
 
 </launch>

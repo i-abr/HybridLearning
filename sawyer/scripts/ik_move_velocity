@@ -35,7 +35,7 @@ from intera_interface import Limb
 # tf
 import PyKDL # for relative pose movements...
 from tf_conversions import posemath, transformations # for relative pose movements...
-
+import time
 
 class go_to_pose(object):
     def __init__(self):
@@ -47,7 +47,6 @@ class go_to_pose(object):
 
         # set up sawyer
         self.limb = Limb()
-        self.limb.set_command_timeout = 0.2
         self.in_tip_frame = False
         self.tip_name = 'right_hand'
         self.endpoint_state = self.limb.tip_state(self.tip_name)
@@ -55,7 +54,7 @@ class go_to_pose(object):
             rospy.logerr('Endpoint state not found with tip name %s', self.tip_name)
 
         # setup ros
-        # s = rospy.Service('/puck/reset', Empty, self.reset)
+        s = rospy.Service('/puck/reset', Empty, self.reset)
         rospy.Subscriber('/puck/relative_move',RelativeMove,self.pose_callback)
 
         # set up controller
@@ -70,10 +69,13 @@ class go_to_pose(object):
         self.desired_theta = self.limb.joint_angles()
         self.home_orientation = Quaternion(0, 1, 0, 0)
         self.last_theta = 0
-        # home_pose = [-0.2, -0.6, 0.0, 1.9, 0.0, 0.3, 1.571];
-        # self.home_joints = dict(zip(self.joint_names, home_pose))
-        # self.limb.set_joint_position_speed(speed=0.6)
-        # self.limb.set_joint_positions(self.home_joints)
+
+        self.reset_arm = 0
+
+        home_pose = [-0.2, -0.6, 0.0, 1.9, 0.0, 0.3, 1.571];
+        self.home_joints = dict(zip(self.joint_names, home_pose))
+        self.limb.set_joint_position_speed(speed=0.6)
+        self.limb.set_joint_positions(self.home_joints)
 
         self.update_velocities()
 
@@ -153,26 +155,33 @@ class go_to_pose(object):
 
         rate=rospy.Rate(50)
         while not rospy.is_shutdown():
-            current_theta = self.limb.joint_angles()
+            if self.reset_arm == 0:
+                current_theta = self.limb.joint_angles()
 
-            for name in self.joint_names:
-                delta_theta_raw[name] = self.desired_theta[name] - current_theta[name]
-                self.delta_theta[name] = self.alpha*self.delta_theta[name] + (1-self.alpha)*delta_theta_raw[name]
-                joint_velocities[name] = self.c*self.delta_theta[name]
-                # joint_velocities[name] = self.c*delta_theta_raw[name]
+                for name in self.joint_names:
+                    delta_theta_raw[name] = self.desired_theta[name] - current_theta[name]
+                    self.delta_theta[name] = self.alpha*self.delta_theta[name] + (1-self.alpha)*delta_theta_raw[name]
+                    joint_velocities[name] = self.c*self.delta_theta[name]
+                    # joint_velocities[name] = self.c*delta_theta_raw[name]
 
-            # rospy.loginfo("New Velocities: %s", joint_velocities)
-            # rospy.loginfo("------------")
-            self.limb.set_joint_velocities(joint_velocities)
+                # rospy.loginfo("New Velocities: %s", joint_velocities)
+                # rospy.loginfo("------------")
+                self.limb.set_joint_velocities(joint_velocities)
             rate.sleep()
 
-    # def reset(self,req):
-    #     for name in self.joint_names:
-    #         self.delta_theta[name] = 0.0
-    #     self.limb.exit_control_mode()
-    #     self.limb.set_joint_position_speed(speed=0.3)
-    #     self.limb.set_joint_positions(self.home_joints)
-    #     return EmptyResponse()
+    def reset(self,req):
+        self.reset_arm = 1
+        for name in self.joint_names:
+            self.delta_theta[name] = 0.0
+        self.desired_theta = self.home_joints
+        self.last_theta = 0
+
+        self.limb.set_joint_position_speed(speed=0.3)
+        self.limb.move_to_joint_positions(self.home_joints, timeout=15.0)
+        rospy.loginfo("Reset Pose")
+        time.sleep(2)
+        self.reset_arm = 0
+        return EmptyResponse()
 
 def main():
     rospy.init_node('ik_move')
