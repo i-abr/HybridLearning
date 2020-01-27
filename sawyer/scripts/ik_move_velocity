@@ -123,6 +123,8 @@ class go_to_pose(object):
         pose.orientation =  orientation
         pose.position.x += data.dx
         pose.position.y += data.dy
+        dz = np.clip(pose.position.z, 0.022,.04)  # correct for drift
+        pose.position.z = dz
         rospy.loginfo("Updated Pose:\n%s", pose)
 
         # create stamped pose with updated pose

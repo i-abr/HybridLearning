@@ -2,6 +2,7 @@
 
     <arg name="image_viewer" default ="False" />
     <arg name="rviz" default ="True" />
+    <arg name="ik_move" default ="True" />
 
     <!-- This node launches the usb camera at video node 2 -->
     <node name="usb_cam1" pkg="usb_cam" type="usb_cam_node" output="screen" >
@@ -45,8 +46,8 @@
         <param name="publish_tag_detections_image" type="bool" value="true" />
     </node>
 
-    <!-- <node pkg="sawyer" name="obj_pose_pub" type="obj_pose_pub.py" output="screen">
-    </node> -->
+    <!-- Load ik solver -->
+    <node pkg="sawyer" name="ik_move_velocity" type="ik_move_velocity" output="screen" if="$(arg ik_move)"/>
 
     <!-- This here opens rviz  -->
     <node name="rviz" pkg="rviz" type="rviz" args="-d $(find sawyer)/config/april_tags.rviz" if="$(arg rviz)" />
