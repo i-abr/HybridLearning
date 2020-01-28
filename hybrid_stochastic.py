@@ -39,17 +39,18 @@ class PathIntegral(object):
                 da.append(v - self.a[t].expand_as(v))
                 s, rew = self.model.step(s, v)
                 mu, log_std = self.policy(s)
-                sk.append(-rew.squeeze())
+                sk.append(rew.squeeze())
 
             sk = torch.stack(sk)
             sk = torch.cumsum(sk.flip(0), 0).flip(0)
 
-            sk = sk - torch.min(sk, dim=1, keepdim=True)[0]
+            # sk = sk - torch.min(sk, dim=1, keepdim=True)[0]
+            sk = sk - torch.max(sk, dim=1, keepdim=True)[0]
 
             log_prob = torch.stack(log_prob)
             log_prob -= torch.max(log_prob, dim=1, keepdim=True)[0]
 
-            w = torch.exp(-sk.div(self.lam) + log_prob) + 1e-5
+            w = torch.exp(sk.div(self.lam) + log_prob) + 1e-5
             w.div_(torch.sum(w, dim=1, keepdim=True))
             for t in range(self.t_H):
                 self.a[t] = self.a[t] + torch.mv(da[t].T, w[t])
