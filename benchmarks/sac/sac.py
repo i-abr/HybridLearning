@@ -50,6 +50,8 @@ class SoftActorCritic(object):
                             z_lambda    = 0.0,
                             soft_tau    = 1e-2
                       ):
+        if batch_size > len(self.replay_buffer):
+            batch_size = len(self.replay_buffer)
         state, action, reward, next_state, done = self.replay_buffer.sample(batch_size)
 
         state      = torch.FloatTensor(state)

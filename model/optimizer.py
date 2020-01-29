@@ -25,6 +25,8 @@ class ModelOptimizer(object):
     def update_model(self, batch_size, mini_iter=1):
 
         for k in range(mini_iter):
+            if batch_size > len(self.replay_buffer):
+                batch_size = len(self.replay_buffer)
             states, actions, rewards, next_states, next_action, done = self.replay_buffer.sample(batch_size)
 
             states = torch.FloatTensor(states)
