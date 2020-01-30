@@ -16,7 +16,7 @@ from sac import ReplayBuffer
 from sac import NormalizedActions
 from hybrid_stochastic import PathIntegral
 from model import ModelOptimizer, Model, SARSAReplayBuffer
-# from model import MDNModelOptimizer, MDNModel
+from model import MDNModelOptimizer, MDNModel
 # argparse things
 import argparse
 
@@ -27,7 +27,7 @@ parser.add_argument('--env',        type=str,   help=envs.getlist())
 parser.add_argument('--max_steps',  type=int,   default=200)
 parser.add_argument('--max_frames', type=int,   default=10000)
 parser.add_argument('--frame_skip', type=int,   default=2)
-parser.add_argument('--model_lr',   type=float, default=3e-3)
+parser.add_argument('--model_lr',   type=float, default=3e-4)
 parser.add_argument('--policy_lr',  type=float, default=3e-4)
 parser.add_argument('--value_lr',   type=float, default=3e-4)
 parser.add_argument('--soft_q_lr',  type=float, default=3e-4)
@@ -35,7 +35,7 @@ parser.add_argument('--soft_q_lr',  type=float, default=3e-4)
 parser.add_argument('--horizon', type=int, default=5)
 parser.add_argument('--model_iter', type=int, default=2)
 parser.add_argument('--trajectory_samples', type=int, default=20)
-parser.add_argument('--lam',  type=float, default=0.1)
+parser.add_argument('--lam',  type=float, default=1.0)
 
 
 parser.add_argument('--done_util', dest='done_util', action='store_true')
@@ -44,35 +44,21 @@ parser.set_defaults(done_util=True)
 
 parser.add_argument('--render', dest='render', action='store_true')
 parser.add_argument('--no_render', dest='render', action='store_false')
-parser.set_defaults(render=False)
+parser.set_defaults(render=True)
 
 args = parser.parse_args()
 
+class ActionWrapper(object):
+    def __init__(self, action_space):
+        self.action_space = action_space
+        self.mean = np.mean([action_space.low, action_space.high], axis=0)
+        self.std = np.std([action_space.low, action_space.high], axis=0)
 
-def get_expert_data(env, replay_buffer, T=200):
-    state = env.reset()
-    for t in range(T):
-        action = expert(env, state)
-        next_state, reward, done, info = env.step(action)
-        replay_buffer.push(state, action, reward, next_state, done)
+    def __call__(self, action):
+        return action
+        # return (action + self.mean)*self.std
 
-        state = next_state
 
-        if done:
-            break
-
-def test_with_planner(env, planner, max_steps=200):
-        state = env.reset()
-        planner.reset()
-        episode_reward = 0
-        for step in range(max_steps):
-            action = planner(state)
-            next_state, reward, done, _ = env.step(action)
-            state = next_state
-            episode_reward += reward
-            if done:
-                break
-        return episode_reward
 
 if __name__ == '__main__':
 
@@ -93,8 +79,11 @@ if __name__ == '__main__':
         env = envs.env_list[env_name]()
     env.reset()
     print(env.action_space.low, env.action_space.high)
-    assert np.any(np.abs(env.action_space.low) <= 1.) and  np.any(np.abs(env.action_space.high) <= 1.), 'Action space not normalizd'
-
+    action_wrapper = ActionWrapper(env.action_space)
+    # assert np.any(np.abs(env.action_space.low) <= 1.) and  np.any(np.abs(env.action_space.high) <= 1.), 'Action space not normalizd'
+    print('CHECKING THE WRAPPER')
+    # print(action_wrapper(np.ones(env.action_space.shape)))
+    # print(action_wrapper(-np.ones(env.action_space.shape)))
 
     now = datetime.now()
     date_str = now.strftime("%Y-%m-%d_%H-%M-%S/")
@@ -109,7 +98,7 @@ if __name__ == '__main__':
 
     policy_net = PolicyNetwork(state_dim, action_dim, hidden_dim)
 
-    model = Model(state_dim, action_dim, def_layers=[200, 128])
+    model = Model(state_dim, action_dim, def_layers=[256])
     # model = MDNModel(state_dim, action_dim, def_layers=[200, 200])
 
 
@@ -138,11 +127,10 @@ if __name__ == '__main__':
 
     frame_idx   = 0
     rewards     = []
-    batch_size  = 32
+    batch_size  = 128
 
     # env.camera_adjust()
     ep_num = 0
-    tot_time = 0.
     while frame_idx < max_frames:
         state = env.reset()
         planner.reset()
@@ -153,25 +141,20 @@ if __name__ == '__main__':
         for step in range(max_steps):
             # action = policy_net.get_action(state)
             for _ in range(frame_skip):
-                next_state, reward, done, _ = env.step(action.copy())
-            reward = reward * 10.
+                next_state, reward, done, info = env.step(action_wrapper(action.copy()))
 
-            start_time = time.time()
             next_action = planner(next_state)
 
             replay_buffer.push(state, action, reward, next_state, done)
             model_replay_buffer.push(state, action, reward, next_state, next_action, done)
 
-            # if len(replay_buffer) > batch_size:
-            #     sac.soft_q_update(batch_size)
-            #     model_optim.update_model(batch_size, mini_iter=args.model_iter)
-            end_time = time.time()
-            tot_time += end_time - start_time
+            if len(replay_buffer) > batch_size:
+                sac.soft_q_update(batch_size)
+                model_optim.update_model(batch_size, mini_iter=args.model_iter)
             state = next_state
             action = next_action
             episode_reward += reward
             frame_idx += 1
-            print('estimated completion time : ', tot_time/frame_idx)
 
             if args.render:
                 env.render("human")
@@ -190,10 +173,10 @@ if __name__ == '__main__':
             if args.done_util:
                 if done:
                     break
-        for _ in range(100):
-            if len(replay_buffer) > batch_size:
-                sac.soft_q_update(batch_size)
-                model_optim.update_model(batch_size, mini_iter=args.model_iter)
+        # for _ in range(100):
+        #     if len(replay_buffer) > batch_size:
+        #         sac.soft_q_update(batch_size)
+        #         model_optim.update_model(batch_size, mini_iter=args.model_iter)
         if len(replay_buffer) > batch_size:
             print('ep rew', ep_num, episode_reward, model_optim.log['rew_loss'][-1], model_optim.log['loss'][-1])
             print('ssac loss', sac.log['value_loss'][-1], sac.log['policy_loss'][-1], sac.log['q_value_loss'][-1])

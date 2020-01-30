@@ -24,9 +24,10 @@ def jacobian(y, x):
     :return: Jacobian matrix (torch.tensor) of shape [B, N, N]
     """
 
-    B, N = x.shape
+    B, N = y.shape
     jacobian = list()
     for i in range(N):
+        zero_gradients(x)
         v = torch.zeros_like(y)
         v[:, i] = 1.
         dy_i_dx = autograd.grad(y,

@@ -46,7 +46,7 @@ class ModelOptimizer(object):
             rew_loss = torch.mean(torch.pow((rewards+self._lam*(1-done)*next_vals).detach() - pred_rew,2))
             # rew_loss = torch.mean(torch.pow(rewards - pred_rew,2))
 
-            model_loss = -torch.mean(state_dist.log_prob(next_states)) + self._eps * torch.norm(df, dim=[1,2]).mean()
+            model_loss = -torch.mean(state_dist.log_prob(next_states))# + self._eps * torch.norm(df, dim=[1,2]).mean()
             # - 1e-3*pred_next_state_dist.entropy().mean()
 
             loss = 0.5 * rew_loss + model_loss
@@ -77,6 +77,8 @@ class MDNModelOptimizer(object):
             states, actions, rewards, next_states, done = self.replay_buffer.sample(batch_size)
 
             states = torch.FloatTensor(states)
+            states.requires_grad = True
+
             next_states = torch.FloatTensor(next_states)
             actions = torch.FloatTensor(actions)
             rewards = torch.FloatTensor(rewards).unsqueeze(1)
@@ -84,11 +86,14 @@ class MDNModelOptimizer(object):
 
             log_probs, pred_rewards = self.model(states, actions, next_states)
 
+            df = jacobian(log_probs, states)
+
+
             next_value = self.model.predict_reward(next_states)
 
             #rew_loss = torch.mean(torch.pow(pred_rewards - rewards,2))
             rew_loss = torch.mean(torch.pow((rewards+(1-done)*0.99*next_value).detach()-pred_rewards,2))
-            model_loss = -torch.mean(log_probs)
+            model_loss = -torch.mean(log_probs) + 1e-2 * torch.norm(df, dim=[1,2]).mean()
 
             loss = 0.5 * rew_loss + model_loss
 

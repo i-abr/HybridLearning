@@ -6,7 +6,7 @@ import torch.nn.functional as F
 from torch.distributions import Normal
 
 class PolicyNetwork(nn.Module):
-    def __init__(self, num_inputs, num_actions, hidden_size, init_w=3e-3, log_std_min=-10, log_std_max=2):
+    def __init__(self, num_inputs, num_actions, hidden_size, init_w=3e-2, log_std_min=-10, log_std_max=2):
         super(PolicyNetwork, self).__init__()
 
         self.log_std_min = log_std_min

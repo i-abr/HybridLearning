@@ -1,5 +1,6 @@
 import torch
 from torch.distributions import Normal
+import numpy as np
 
 class PathIntegral(object):
 
@@ -43,15 +44,13 @@ class PathIntegral(object):
 
             sk = torch.stack(sk)
             sk = torch.cumsum(sk.flip(0), 0).flip(0)
-
-            # sk = sk - torch.min(sk, dim=1, keepdim=True)[0]
             sk = sk - torch.max(sk, dim=1, keepdim=True)[0]
             log_prob = torch.stack(log_prob)
-            # log_prob -= torch.max(log_prob, dim=1, keepdim=True)[0]
+            log_prob -= torch.max(log_prob, dim=1, keepdim=True)[0]
 
             w = torch.exp(sk.div(self.lam) + log_prob) + 1e-5
             w.div_(torch.sum(w, dim=1, keepdim=True))
             for t in range(self.t_H):
                 self.a[t] = self.a[t] + torch.mv(da[t].T, w[t])
 
-            return self.a[0].clone().numpy()
+            return np.clip(self.a[0].clone().numpy(), -1,1)

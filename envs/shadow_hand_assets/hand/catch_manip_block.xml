@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mujoco>
+    <compiler angle="radian" coordinate="local" meshdir="../stls/hand" texturedir="../textures"></compiler>
+    <option timestep="0.002" iterations="20" apirate="60">
+        <flag warmstart="enable"></flag>
+    </option>
+
+    <include file="shared.xml"></include>
+
+    <asset>
+        <include file="shared_asset.xml"></include>
+
+        <texture name="texture:object" file="block.png" gridsize="3 4" gridlayout=".U..LFRB.D.."></texture>
+        <texture name="texture:hidden" file="block_hidden.png" gridsize="3 4" gridlayout=".U..LFRB.D.."></texture>
+
+        <material name="material:object" texture="texture:object" specular="1" shininess="0.3" reflectance="0"></material>
+        <material name="material:hidden" texture="texture:hidden" specular="1" shininess="0.3" reflectance="0"></material>
+        <material name="material:target" texture="texture:object" specular="1" shininess="0.3" reflectance="0" rgba="1 1 1 0.5"></material>
+    </asset>
+
+    <worldbody>
+        <!-- <geom name="floor0" pos="1 1 0" size="1 1 1" type="plane" condim="3" material="floor_mat"></geom> -->
+        <camera name="fixed" pos="0.5 0.4 0.5" euler='1.1 -0.6 0'/>
+
+        <geom name="floor0" pos="0 0 -0.5" size="1 1 1" type="plane" condim="3" rgba='0.5 0.2 0.5 1'></geom>
+        <body name="floor0" pos="0 0 -0.5"></body>
+
+        <body name="forearm" pos="0 -0.7 0.2" euler="-1.57 0 0"><!--"3.1415"-->
+            <inertial pos="0.001 -0.002 0.29" quat="0.982037 -0.0160006 0 -0.188007" mass="4" diaginertia="0.01 0.01 0.0075" />
+            <joint name="ARTz" pos="0 0 0" axis="0 0 1" type="slide" range="-0.4 0.7" damping="20" />
+            <joint name="ARRx" pos="0 0 0" axis="1 0 0" range="-0.75 0.75" damping="20" />
+            <joint name="ARRy" pos="0 0 0" axis="0 1 0" range="-0.75 0.75" damping="20" />
+            <joint name="ARRz" pos="0 0 0" axis="0 0 1" range="-1. 0.75" damping="20" />
+            <include file="robot.xml"></include>
+        </body>
+
+        <body name="object" pos="0 0.1 0.5">
+            <!--geom name="object" type="box" size="0.025 0.025 0.025"
+                                    material="material:object" condim="4" density="267"></geom-->
+            <geom name="object" type="box" size="0.025 0.025 0.025"
+                                    material="material:object" condim="4" density="267"></geom>
+            <!--geom name="object_hidden" type="box" size="0.024 0.024 0.024"
+                            material="material:hidden" condim="4" contype="0" conaffinity="0" mass="0"></geom-->
+            <site name="object:center" pos="0 0 0" rgba="1 0 0 0" size="0.01 0.01 0.01"></site>
+            <joint name="object:joint" type="free" damping="0.01"></joint>
+        </body>
+
+        <body name="target" pos="0 0.2 0.2" euler='0 1.57 0'>
+            <geom name="target" type="box" size="0.025 0.025 0.025" material="material:target" condim="4" group="2" contype="0" conaffinity="0"></geom>
+            <site name="target:center" pos="0 0 0" rgba="1 0 0 0" size="0.01 0.01 0.01"></site>
+            <!-- <joint name="target:joint" type="free" damping="0.01"></joint> -->
+        </body>
+
+        <!-- light directional="false" ambient="0.2 0.2 0.2" diffuse="0.8 0.8 0.8" specular="0.3 0.3 0.3" castshadow="true" pos="0 1 4" dir="0 0 -1" name="light0"></light-->
+        <light directional='true' castshadow='false'/>
+    </worldbody>
+
+    <actuator>
+        <general name='A_ARTz' joint='ARTz' ctrlrange='-0.4 0.7' biastype='affine' gainprm='500 0 0' biasprm='0 -200 0'/>
+        <!--general name="A_ARTz" joint="ARTz" ctrlrange="-.3 .5" biastype="affine" gainprm="500 0 0" biasprm="0 -200 0" /-->
+        <general name="A_ARRx" joint="ARRx" ctrlrange="-.75 .75" biastype="affine" gainprm="500 0 0" biasprm="0 -200 0" />
+        <general name="A_ARRy" joint="ARRy" ctrlrange="-.75 .75" biastype="affine" gainprm="500 0 0" biasprm="0 -200 0" />
+        <general name="A_ARRz" joint="ARRz" ctrlrange="-1. 0.75" biastype="affine" gainprm="500 0 0" biasprm="0 -200 0" />
+        <!-- the ctrl range for A_ARRz was -1 3-->
+    </actuator>
+
+
+</mujoco>
