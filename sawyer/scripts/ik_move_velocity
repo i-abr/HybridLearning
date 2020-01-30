@@ -107,7 +107,7 @@ class go_to_pose(object):
         # elif (abs(theta) == abs(self.last_theta)):
         #     orientation = current_pose.orientation
         # else:
-        # orientation = Quaternion(*transformations.quaternion_from_euler(self.euler[0], self.euler[1], self.euler[2]+data.dtheta))
+        orientation = Quaternion(*transformations.quaternion_from_euler(self.euler[0], self.euler[1], self.euler[2]+data.dtheta))
 
             # rospy.loginfo("theta:\n%s", theta)
             # rospy.loginfo("home orientation?:\n%s", euler)
@@ -127,7 +127,7 @@ class go_to_pose(object):
         #     pose = posemath.toMsg(f2 * posemath.fromMsg(current_pose))
 
         pose = current_pose
-        # pose.orientation =  orientation
+        pose.orientation =  orientation
         pose.position.x += data.dx
         pose.position.y += data.dy
         dz = np.clip(pose.position.z, 0.035,0.05)  # correct for drift

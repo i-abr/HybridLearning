@@ -1,8 +1,8 @@
-#!/bin/zsh
+#!/bin/bash
 
 for i in {1..1}
 do
-    python3 h_sac.py \
+    python2 h_sac_python2.py \
                 --env "HalfCheetahBulletEnv" \
                 --max_steps 1000 \
                 --max_frames 40000 \

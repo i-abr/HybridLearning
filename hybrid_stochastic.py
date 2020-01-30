@@ -1,6 +1,7 @@
 import torch
 from torch.distributions import Normal
 import time
+import numpy as np
 
 class PathIntegral(object):
 
@@ -20,7 +21,7 @@ class PathIntegral(object):
         self.a.zero_()
 
     def __call__(self, state):
-
+        # return np.random.normal(0,0.1,size=(2,))
         with torch.no_grad():
             self.a[:-1] = self.a[1:].clone()
             self.a[-1].zero_()

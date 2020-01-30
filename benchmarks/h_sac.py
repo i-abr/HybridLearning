@@ -55,7 +55,8 @@ from geometry_msgs.msg import Pose2D
 from std_srvs.srv import Empty, EmptyResponse
 import tf
 import time
-from intera_interface import Limb
+from intera_core_msgs.msg import EndpointState
+# from intera_interface import Limb
 
 class sawer_env(object):
     def __init__(self):
@@ -64,17 +65,16 @@ class sawer_env(object):
         self.reset_arm = rospy.ServiceProxy('/puck/reset', Empty)
         rospy.wait_for_service('/puck/reset', 5.0)
         self.listener = tf.TransformListener()
+        rospy.Service('/puck/done', Empty, self.doneCallback)
 
         # set up sawyer
-        self.limb = Limb()
+        self.limb = rospy.Subscriber("/robot/limb/right/endpoint_state", EndpointState, self.check_workspace)
+        self.wall = 0
 
         # set up tf
         target_transform = self.setup_transform_between_frames( 'target','block2')
         ee_transform = self.setup_transform_between_frames('target','ee')
         self.state = np.array([ee_transform[0],ee_transform[1],target_transform[0],target_transform[1]])
-
-        # set up rewards
-        self.thresh = 0.3
 
     def setup_transform_between_frames(self, reference_frame, target_frame):
         time_out = 0.5
@@ -101,23 +101,24 @@ class sawer_env(object):
 
     def reset(self):
         resp = self.reset_arm()
-        self.get_transforms()
+        # self.get_transforms()
         return self.state
 
     def step(self, _a):
         # check if in workspace
-        wall = self.check_workspace()
-        if (wall == False):
+        # wall = self.check_workspace()
+        # wall = False
+        if (self.wall == False):
             action = 0.2*np.clip(_a, -1,1)
             # theta = (np.pi/4)*np.clip(_a[2],-1,1)  # keep april tags in view
             # publishes action input
             pose = RelativeMove()
             pose.dx = action[0]
             pose.dy = action[1]
-            # pose.dtheta = theta
+            pose.dtheta = theta
             self.move.publish(pose)
             # gets the new state
-            self.get_transforms()
+            # self.get_transforms()
             reward, done = self.reward_function()
         else:
             done = True
@@ -151,138 +152,134 @@ class sawer_env(object):
 
         return reward, done
 
-    def check_workspace(self):
-        current_pose = Limb().tip_state('right_hand').pose # get current state
+    def check_workspace(self,current_pose):
+        # current_pose = Limb().tip_state('right_hand').pose # get current state
         # make sure ee stays in workspace
-        if ((current_pose.position.x > 0.85) or (current_pose.position.x < 0.45)
-        or (current_pose.position.y > 0.3) or (current_pose.position.y < -0.25)):
+        if ((current_pose.pose.position.x > 0.85) or (current_pose.pose.position.x < 0.45)
+        or (current_pose.pose.position.y > 0.3) or (current_pose.pose.position.y < -0.25)):
             wall = True
         else:
             wall = False
-        return wall
+        self.wall = wall
+        # return wall
 
-# class h_sac(object):
-def doneCallback(req):
-    done = True
-    print('manual done called')
-    return EmptyResponse()
+    def doneCallback(self,req):
+        step.wall = True
+        print('manual done called')
+        return EmptyResponse()
 
 if __name__ == '__main__':
-    rospy.init_node('h_sac')
+    try:
+        rospy.init_node('h_sac')
 
-    env = sawer_env()
-    manual_done = rospy.Service('/puck/done', Empty, doneCallback)
+        env = sawer_env()
 
-    env_name = 'sawyer'
-    now = datetime.now()
-    date_str = now.strftime("%Y-%m-%d_%H-%M-%S/")
+        env_name = 'sawyer'
+        now = datetime.now()
+        date_str = now.strftime("%Y-%m-%d_%H-%M-%S/")
 
-    path = './data/' + env_name +  '/' + 'h_sac/' + date_str
-    if os.path.exists(path) is False:
-        os.makedirs(path)
+        path = './data/' + env_name +  '/' + 'h_sac/' + date_str
+        if os.path.exists(path) is False:
+            os.makedirs(path)
 
-    action_dim = 2 # env.action_space.shape[0]
-    state_dim  = 4 # env.observation_space.shape[0]
-    hidden_dim = 128
+        action_dim = 3 # env.action_space.shape[0]
+        state_dim  = 4 # env.observation_space.shape[0]
+        hidden_dim = 128
 
-    policy_net = PolicyNetwork(state_dim, action_dim, hidden_dim)
+        policy_net = PolicyNetwork(state_dim, action_dim, hidden_dim)
 
-    model = Model(state_dim, action_dim, def_layers=[200])
+        model = Model(state_dim, action_dim, def_layers=[200])
 
-    replay_buffer_size = 10000
-    replay_buffer = ReplayBuffer(replay_buffer_size)
+        replay_buffer_size = 10000
+        replay_buffer = ReplayBuffer(replay_buffer_size)
 
-    model_replay_buffer = SARSAReplayBuffer(replay_buffer_size)
-    model_optim = ModelOptimizer(model, model_replay_buffer, lr=args.model_lr)
+        model_replay_buffer = SARSAReplayBuffer(replay_buffer_size)
+        model_optim = ModelOptimizer(model, model_replay_buffer, lr=args.model_lr)
 
-    sac = SoftActorCritic(policy=policy_net,
-                          state_dim=state_dim,
-                          action_dim=action_dim,
-                          replay_buffer=replay_buffer,
-                          policy_lr=args.policy_lr,
-                          value_lr=args.value_lr,
-                          soft_q_lr=args.soft_q_lr)
+        sac = SoftActorCritic(policy=policy_net,
+                              state_dim=state_dim,
+                              action_dim=action_dim,
+                              replay_buffer=replay_buffer,
+                              policy_lr=args.policy_lr,
+                              value_lr=args.value_lr,
+                              soft_q_lr=args.soft_q_lr)
 
-    planner = PathIntegral(model, policy_net, samples=args.trajectory_samples, t_H=args.horizon, lam=args.lam)
+        planner = PathIntegral(model, policy_net, samples=args.trajectory_samples, t_H=args.horizon, lam=args.lam)
 
-    max_frames = args.max_frames
-    max_steps  = args.max_steps
-    frame_skip = args.frame_skip
+        max_frames = args.max_frames
+        max_steps  = args.max_steps
+        frame_skip = args.frame_skip
 
-    frame_idx  = 0
-    rewards    = []
-    batch_size = 32
+        frame_idx  = 0
+        rewards    = []
+        batch_size = 128
 
-    ep_num = 0
+        ep_num = 0
 
-    rate=rospy.Rate(10)
+        rate=rospy.Rate(100)
 
-    while frame_idx < max_frames:
-        state = env.reset()
-        planner.reset()
+        while frame_idx < max_frames:
+            state = env.reset()
+            planner.reset()
 
-        action = planner(state)
+            action = planner(state)
 
-        episode_reward = 0
-        for step in range(max_steps):
-            next_state, reward, done = env.step(action.copy())
+            episode_reward = 0
+            for step in range(max_steps):
+                next_state, reward, done = env.step(action)
 
-            next_action = planner(next_state)
-
-            replay_buffer.push(state, action, reward, next_state, done)
-            model_replay_buffer.push(state, action, reward, next_state, next_action, done)
-
-            # if len(replay_buffer) > batch_size:
-
-
-            state = next_state
-            action = next_action
-            episode_reward += reward
-            frame_idx += 1
-
-            # if args.render:
-            #     env.render("human"
-            print(len(rewards), len(model_optim.log['rew_loss']))
-            print(episode_reward)
-            if (frame_idx % int(max_frames/20) == 0) and (len(replay_buffer) > batch_size):
-                print(
-                    'frame : {}/{}, \t last rew : {}, \t rew loss : {}'.format(
-                        frame_idx, max_frames, rewards[-1][1], model_optim.log['rew_loss'][-1]
-                    )
-                )
                 start_time = time.time()
-                pickle.dump(rewards, open(path + 'reward_data' + '.pkl', 'wb'))
-                torch.save(policy_net.state_dict(), path + 'policy_' + str(frame_idx) + '.pt')
-                end_time = time.time()
-                print('pickle elapsed time', start_time)
-            if done:
-                print('done loop')
-                break
-            else:
-                rate.sleep()
-        #if len(replay_buffer) > batch_size:
-        #    for k in range(200):
-        #        sac.soft_q_update(batch_size)
-        #        model_optim.update_model(batch_size, mini_iter=1)#args.model_iter)
-        if frame_idx > 2:
-            for _ in range(10):
-                sac.soft_q_update(batch_size);
-                model_optim.update_model(batch_size, mini_iter=args.model_iter)
-        if len(replay_buffer) > batch_size:
-            print('ep rew', ep_num, episode_reward, model_optim.log['rew_loss'][-1], model_optim.log['loss'][-1])
-            print('ssac loss', sac.log['value_loss'][-1], sac.log['policy_loss'][-1], sac.log['q_value_loss'][-1])
-        rewards.append([frame_idx, episode_reward])
-        ep_num += 1
-    print('saving final data set')
-    pickle.dump(rewards, open(path + 'reward_data'+ '.pkl', 'wb'))
-    torch.save(policy_net.state_dict(), path + 'policy_' + 'final' + '.pt')
+                # print('state',next_state)
+                next_action = planner(next_state)
+                print('elapsed time',time.time()-start_time)
 
-# if __name__ == '__main__':
-#     try:
-    #     rospy.init_node('h_sac')
-    #     test = h_sac()
-    #     main()
-    #     while True:
-    #         pass
-    # except KeyboardInterrupt:
-    #     os._exit(0)
+                replay_buffer.push(state, action, reward, next_state, done)
+                model_replay_buffer.push(state, action, reward, next_state, next_action, done)
+
+                # if len(replay_buffer) > batch_size:
+                if frame_idx > 2:
+                    for _ in range(10):
+                        sac.soft_q_update(batch_size);
+                        model_optim.update_model(batch_size, mini_iter=args.model_iter)
+
+                state = next_state
+                action = next_action
+                episode_reward += reward
+                frame_idx += 1
+
+                # if args.render:
+                #     env.render("human"
+                print(len(rewards), len(model_optim.log['rew_loss']))
+                print(episode_reward)
+                if (frame_idx % int(max_frames/20) == 0) and (len(replay_buffer) > batch_size):
+                    print(
+                        'frame : {}/{}, \t last rew : {}, \t rew loss : {}'.format(
+                            frame_idx, max_frames, rewards[-1][1], model_optim.log['rew_loss'][-1]
+                        )
+                    )
+                    start_time = time.time()
+                    pickle.dump(rewards, open(path + 'reward_data' + '.pkl', 'wb'))
+                    torch.save(policy_net.state_dict(), path + 'policy_' + str(frame_idx) + '.pt')
+                    end_time = time.time()
+                    print('pickle elapsed time', start_time)
+                if done:
+                    print('done loop')
+                    break
+                else:
+                    rate.sleep()
+            #if len(replay_buffer) > batch_size:
+            #    for k in range(200):
+            #        sac.soft_q_update(batch_size)
+            #        model_optim.update_model(batch_size, mini_iter=1)#args.model_iter)
+
+            if len(replay_buffer) > batch_size:
+                print('ep rew', ep_num, episode_reward, model_optim.log['rew_loss'][-1], model_optim.log['loss'][-1])
+                print('ssac loss', sac.log['value_loss'][-1], sac.log['policy_loss'][-1], sac.log['q_value_loss'][-1])
+            rewards.append([frame_idx, episode_reward])
+            ep_num += 1
+        print('saving final data set')
+        pickle.dump(rewards, open(path + 'reward_data'+ '.pkl', 'wb'))
+        torch.save(policy_net.state_dict(), path + 'policy_' + 'final' + '.pt')
+
+    except KeyboardInterrupt:
+        os._exit(0)
