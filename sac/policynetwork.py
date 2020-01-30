@@ -6,33 +6,37 @@ import torch.nn.functional as F
 from torch.distributions import Normal
 
 class PolicyNetwork(nn.Module):
-    def __init__(self, num_inputs, num_actions, hidden_size, init_w=3e-3, log_std_min=-20, log_std_max=2):
+    def __init__(self, num_inputs, num_actions, hidden_size, init_w=3e-3, log_std_min=-10, log_std_max=2):
         super(PolicyNetwork, self).__init__()
 
         self.log_std_min = log_std_min
         self.log_std_max = log_std_max
 
         self.linear1 = nn.Linear(num_inputs, hidden_size)
-
-        self.linear2 = nn.Linear(num_inputs, hidden_size)
+        # self.linear2 = nn.Linear(hidden_size, hidden_size)
 
         self.mean_linear = nn.Linear(hidden_size, num_actions)
         self.mean_linear.weight.data.uniform_(-init_w, init_w)
         self.mean_linear.bias.data.uniform_(-init_w, init_w)
 
-        self.log_std_linear = nn.Linear(hidden_size, num_actions)
-        self.log_std_linear.weight.data.uniform_(-init_w*0., init_w)
-        self.log_std_linear.bias.data.uniform_(-init_w*0., init_w)
-        # self.log_std_linear.weight.data.zero_()
-        # self.log_std_linear.bias.data.zero_()
+        self.log_std_linear1 = nn.Linear(num_inputs, hidden_size)
+        # self.log_std_linear2 = nn.Linear(hidden_size, hidden_size)
+        self.log_std_linear3 = nn.Linear(hidden_size, num_actions)
+
+        self.log_std_linear3.weight.data.uniform_(-init_w, init_w)
+        self.log_std_linear3.bias.data.uniform_(-init_w, init_w)
+
 
     def forward(self, state):
-        # x = F.relu(self.linear1(state))
-        # x = F.relu(self.linear2(x))
         x = torch.sin(self.linear1(state))
-
+        # x = F.relu(self.linear2(x))
         mean    = self.mean_linear(x)
-        log_std = self.log_std_linear(F.relu(self.linear2(state)))
+
+        log_std = state
+        log_std = torch.sin(self.log_std_linear1(log_std))
+        # log_std = F.relu(self.log_std_linear2(log_std))
+        log_std = self.log_std_linear3(log_std)
+
         log_std = torch.clamp(log_std, self.log_std_min, self.log_std_max)
 
         return mean, log_std

@@ -71,7 +71,6 @@ if __name__ == '__main__':
         print('no argument render,  assumping env.render will just work')
         env = envs.env_list[env_name]()
     env.reset()
-    print(env.action_space.low, env.action_space.high)
     assert np.any(np.abs(env.action_space.low) <= 1.) and  np.any(np.abs(env.action_space.high) <= 1.), 'Action space not normalizd'
 
     now = datetime.now()
@@ -123,7 +122,7 @@ if __name__ == '__main__':
             replay_buffer.push(state, action, reward, next_state, done)
 
 
-            if len(replay_buffer) > batch_size:
+            if len(replay_buffer) > batch_size and (step % 10 == 0):
                 sac.soft_q_update(batch_size)
 
 

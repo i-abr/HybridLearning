@@ -27,9 +27,9 @@ class Model(nn.Module):
         self.reward_fun = nn.Sequential(
             nn.Linear(num_states+num_actions, def_layers[0]),
             nn.ReLU(),
-            nn.Linear(def_layers[0], def_layers[0]),
+            nn.Linear(def_layers[0], def_layers[1]),
             nn.ReLU(),
-            nn.Linear(def_layers[0], 1)
+            nn.Linear(def_layers[1], 1)
         )
 
 
@@ -38,7 +38,7 @@ class Model(nn.Module):
         #     var = 'rew_layer' + str(i)
         #     setattr(self, var, nn.Linear(insize, outsize))
 
-        self.log_std = nn.Parameter(torch.ones(1, num_states) * std)
+        self.log_std = nn.Parameter(torch.randn(1, num_states) * 3e-3)
 
         # self.log_std = nn.Sequential(
         #     nn.Linear(def_layers[-1], def_layers[-1]),
@@ -56,8 +56,8 @@ class Model(nn.Module):
         for i in self.n_params[:-1]:
             w = getattr(self, 'layer' + str(i))
             x = w(x)
-            # x = F.relu(x)
-            x = torch.sin(x)
+            x = F.relu(x)
+            # x = torch.sin(x)
         # std = torch.clamp(self.log_std(x), -20., 2.).exp()
 
         w = getattr(self, 'layer' + str(self.n_params[-1]))

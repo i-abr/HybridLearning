@@ -20,6 +20,8 @@ from model import ModelOptimizer, Model, SARSAReplayBuffer
 # argparse things
 import argparse
 
+import time
+
 parser = argparse.ArgumentParser()
 parser.add_argument('--env',        type=str,   help=envs.getlist())
 parser.add_argument('--max_steps',  type=int,   default=200)
@@ -107,7 +109,7 @@ if __name__ == '__main__':
 
     policy_net = PolicyNetwork(state_dim, action_dim, hidden_dim)
 
-    model = Model(state_dim, action_dim, def_layers=[200])
+    model = Model(state_dim, action_dim, def_layers=[200, 128])
     # model = MDNModel(state_dim, action_dim, def_layers=[200, 200])
 
 
@@ -136,10 +138,11 @@ if __name__ == '__main__':
 
     frame_idx   = 0
     rewards     = []
-    batch_size  = 128
+    batch_size  = 32
 
     # env.camera_adjust()
     ep_num = 0
+    tot_time = 0.
     while frame_idx < max_frames:
         state = env.reset()
         planner.reset()
@@ -151,21 +154,24 @@ if __name__ == '__main__':
             # action = policy_net.get_action(state)
             for _ in range(frame_skip):
                 next_state, reward, done, _ = env.step(action.copy())
+            reward = reward * 10.
 
-
+            start_time = time.time()
             next_action = planner(next_state)
 
             replay_buffer.push(state, action, reward, next_state, done)
             model_replay_buffer.push(state, action, reward, next_state, next_action, done)
 
-            if len(replay_buffer) > batch_size:
-                sac.soft_q_update(batch_size)
-                model_optim.update_model(batch_size, mini_iter=args.model_iter)
-
+            # if len(replay_buffer) > batch_size:
+            #     sac.soft_q_update(batch_size)
+            #     model_optim.update_model(batch_size, mini_iter=args.model_iter)
+            end_time = time.time()
+            tot_time += end_time - start_time
             state = next_state
             action = next_action
             episode_reward += reward
             frame_idx += 1
+            print('estimated completion time : ', tot_time/frame_idx)
 
             if args.render:
                 env.render("human")
@@ -184,10 +190,10 @@ if __name__ == '__main__':
             if args.done_util:
                 if done:
                     break
-        #if len(replay_buffer) > batch_size:
-        #    for k in range(200):
-        #        sac.soft_q_update(batch_size)
-        #        model_optim.update_model(batch_size, mini_iter=1)#args.model_iter)
+        for _ in range(100):
+            if len(replay_buffer) > batch_size:
+                sac.soft_q_update(batch_size)
+                model_optim.update_model(batch_size, mini_iter=args.model_iter)
         if len(replay_buffer) > batch_size:
             print('ep rew', ep_num, episode_reward, model_optim.log['rew_loss'][-1], model_optim.log['loss'][-1])
             print('ssac loss', sac.log['value_loss'][-1], sac.log['policy_loss'][-1], sac.log['q_value_loss'][-1])
