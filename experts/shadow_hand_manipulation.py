@@ -58,7 +58,7 @@ def main():
         local_log = []
         state = env.get_state()
         u_seq = [np.zeros(model.action_space.shape[0]) for _ in range(horizon)]
-        for _ in range(100):
+        for _ in range(150):
             state = env.get_state()
             u_seq = mppi(state, model, u_seq, horizon, sig=0.4, lam=.2)
             #eps = np.random.normal(0., 0.1, size=(num_actions,))

@@ -10,7 +10,7 @@ import numpy as np
 import pybullet_envs
 import time
 
-import pickle 
+import pickle
 
 def relu(x):
   return np.maximum(x, 0)
@@ -57,7 +57,7 @@ def main():
       time.sleep(1. / 60.)
       a = pi.act(obs)
       next_obs, r, done, _ = env.step(a)
-      
+
       demonstrations['state'].append(obs)
       demonstrations['action'].append(a)
       demonstrations['next_state'].append(next_obs)
