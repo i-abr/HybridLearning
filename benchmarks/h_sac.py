@@ -27,8 +27,8 @@ parser.add_argument('--env',        type=str,   help=envs.getlist())
 parser.add_argument('--max_steps',  type=int,   default=200)
 parser.add_argument('--max_frames', type=int,   default=10000)
 parser.add_argument('--frame_skip', type=int,   default=2)
-parser.add_argument('--model_lr',   type=float, default=3e-4)
-parser.add_argument('--policy_lr',  type=float, default=3e-4)
+parser.add_argument('--model_lr',   type=float, default=3e-3)
+parser.add_argument('--policy_lr',  type=float, default=3e-3)
 parser.add_argument('--value_lr',   type=float, default=3e-4)
 parser.add_argument('--soft_q_lr',  type=float, default=3e-4)
 
@@ -48,27 +48,23 @@ parser.set_defaults(render=True)
 
 args = parser.parse_args()
 
+
+
 class ActionWrapper(object):
     def __init__(self, action_space):
         self.action_space = action_space
-        self.mean = np.mean([action_space.low, action_space.high], axis=0)
-        self.std = np.std([action_space.low, action_space.high], axis=0)
+        self.mid = np.mean([action_space.low, action_space.high], axis=0)
+        self.rng = 0.5*(action_space.high-action_space.low)
 
     def __call__(self, action):
+        # return action
         return action
-        # return (action + self.mean)*self.std
+        # return self.mid + np.clip(action,-1,1)*self.rng
 
 
 
 if __name__ == '__main__':
 
-    # env_name = 'KukaBulletEnv-v0'
-    # env_name = 'InvertedPendulumSwingupBulletEnv-v0'
-    # env_name = 'ReacherBulletEnv-v0'
-    # env_name = 'HalfCheetahBulletEnv-v0'
-    # env = pybullet_envs.make(env_name)
-    # env.isRender = True
-    # env = KukaGymEnv(renders=True, isDiscrete=False)
 
 
     env_name = args.env
@@ -94,19 +90,21 @@ if __name__ == '__main__':
 
     action_dim = env.action_space.shape[0]
     state_dim  = env.observation_space.shape[0]
-    hidden_dim = 128
+    hidden_dim = 64
 
     policy_net = PolicyNetwork(state_dim, action_dim, hidden_dim)
 
-    model = Model(state_dim, action_dim, def_layers=[256])
+    model = Model(state_dim, action_dim, hidden_dim=256)
     # model = MDNModel(state_dim, action_dim, def_layers=[200, 200])
 
-
+    # get expert data
+    expert_data = pickle.load(open('../experts/data/shadow_hand/cube_manip/demonstrations.pkl', 'rb'))
+    # expert_data = None
     replay_buffer_size = 1000000
     replay_buffer = ReplayBuffer(replay_buffer_size)
 
     model_replay_buffer = SARSAReplayBuffer(replay_buffer_size)
-    model_optim = ModelOptimizer(model, model_replay_buffer, lr=args.model_lr)
+    model_optim = ModelOptimizer(model, model_replay_buffer, lr=args.model_lr, expert_data=expert_data)
 
     # model_optim = MDNModelOptimizer(model, replay_buffer, lr=args.model_lr)
 
@@ -117,7 +115,8 @@ if __name__ == '__main__':
                           replay_buffer=replay_buffer,
                           policy_lr=args.policy_lr,
                           value_lr=args.value_lr,
-                          soft_q_lr=args.soft_q_lr)
+                          soft_q_lr=args.soft_q_lr,
+                          expert_data=expert_data)
 
     planner = PathIntegral(model, policy_net, samples=args.trajectory_samples, t_H=args.horizon, lam=args.lam)
 
@@ -151,6 +150,13 @@ if __name__ == '__main__':
             if len(replay_buffer) > batch_size:
                 sac.soft_q_update(batch_size)
                 model_optim.update_model(batch_size, mini_iter=args.model_iter)
+                print('iter', frame_idx,
+                    'model loss', model_optim.log['model_loss'][-1],
+                    'rew_loss', model_optim.log['rew_loss'][-1],
+                    'q value loss', sac.log['q_value_loss'][-1],
+                    'value loss', sac.log['value_loss'][-1],
+                    'policy_loss', sac.log['policy_loss'][-1])
+
             state = next_state
             action = next_action
             episode_reward += reward
@@ -173,13 +179,14 @@ if __name__ == '__main__':
             if args.done_util:
                 if done:
                     break
-        # for _ in range(100):
+        # for _ in range(150):
         #     if len(replay_buffer) > batch_size:
         #         sac.soft_q_update(batch_size)
         #         model_optim.update_model(batch_size, mini_iter=args.model_iter)
         if len(replay_buffer) > batch_size:
-            print('ep rew', ep_num, episode_reward, model_optim.log['rew_loss'][-1], model_optim.log['loss'][-1])
-            print('ssac loss', sac.log['value_loss'][-1], sac.log['policy_loss'][-1], sac.log['q_value_loss'][-1])
+            print('ep rew', ep_num, episode_reward)
+            # , model_optim.log['rew_loss'][-1], model_optim.log['loss'][-1])
+            # print('ssac loss', sac.log['value_loss'][-1], sac.log['policy_loss'][-1], sac.log['q_value_loss'][-1])
         rewards.append([frame_idx, episode_reward])
         ep_num += 1
     print('saving final data set')

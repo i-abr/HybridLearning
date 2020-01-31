@@ -6,9 +6,11 @@ do
                 --env Pusher \
                 --max_steps 50 \
                 --max_frames 15000 \
-                --horizon 10 \
+                --horizon 40 \
                 --frame_skip 2 \
-                --lam 0.8 \
+                --model_lr 0.01 \
+                --trajectory_samples 20 \
+                --lam 0.2 \
                 --render
     echo "trial $i out of 2"
 done

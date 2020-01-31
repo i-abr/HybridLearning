@@ -4,13 +4,13 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 from torch.distributions import Normal
-
+import random
 from .jacobian import jacobian
 
 
 class ModelOptimizer(object):
 
-    def __init__(self, model, replay_buffer, lr=1e-2, eps=1e-1, lam=0.95):
+    def __init__(self, model, replay_buffer, lr=1e-2, eps=1e-1, lam=0., expert_data=None):
 
         # reference the model and buffer
         self.model          = model
@@ -20,18 +20,36 @@ class ModelOptimizer(object):
         # logger
         self._eps = eps
         self._lam = lam
-        self.log = {'loss' : [], 'rew_loss': []}
+        self.log = {'loss' : [], 'rew_loss': [], 'model_loss' : []}
+
+        self.expert_data = None
+
+        if expert_data is not None:
+            self.expert_data = expert_data
+
 
     def update_model(self, batch_size, mini_iter=1):
 
         for k in range(mini_iter):
-            states, actions, rewards, next_states, next_action, done = self.replay_buffer.sample(batch_size)
+            states, actions, rewards, next_states, next_actions, done = self.replay_buffer.sample(batch_size)
+
+            if self.expert_data is not None:
+                batch = random.sample(self.expert_data, batch_size)
+                e_states, e_actions, e_rewards, e_next_states, e_next_actions, e_done \
+                            =  map(np.stack, zip(*batch))
+
+                states = np.concatenate([states, e_states], axis=0)
+                actions = np.concatenate([actions, e_actions], axis=0)
+                rewards = np.concatenate([rewards, e_rewards], axis=0)
+                next_states = np.concatenate([next_states, e_next_states], axis=0)
+                next_actions = np.concatenate([next_actions, e_next_actions], axis=0)
+                done = np.concatenate([done, e_done], axis=0)
 
             states = torch.FloatTensor(states)
-            states.requires_grad = True
+            # states.requires_grad = True
             next_states = torch.FloatTensor(next_states)
             actions = torch.FloatTensor(actions)
-            next_action = torch.FloatTensor(next_action)
+            next_action = torch.FloatTensor(next_actions)
             rewards = torch.FloatTensor(rewards).unsqueeze(1)
             done    = torch.FloatTensor(np.float32(done)).unsqueeze(1)
 
@@ -39,7 +57,7 @@ class ModelOptimizer(object):
 
             state_dist = Normal(pred_mean, pred_std)
 
-            df = jacobian(pred_mean, states)
+            # df = jacobian(pred_mean, states)
 
             next_vals = self.model.reward_fun(torch.cat([next_states, next_action], axis=1))
 
@@ -55,6 +73,7 @@ class ModelOptimizer(object):
             loss.backward()
             self.model_optimizer.step()
         self.log['loss'].append(loss.item())
+        self.log['model_loss'].append(model_loss.item())
         self.log['rew_loss'].append(rew_loss.item())
 
 class MDNModelOptimizer(object):

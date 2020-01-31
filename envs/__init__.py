@@ -6,7 +6,7 @@ from rex_gym.envs.gym.galloping_env import RexReactiveEnv
 
 from gym.envs.mujoco import ant_v3, half_cheetah_v3, swimmer_v3, pusher, striker, thrower, reacher3d
 
-from .cube_manip import CubeManipEnv
+from .shadow_hand.cube_manip import CubeManipEnv
 
 env_list = {
     'InvertedPendulumSwingupBulletEnv' : gym_pendulum_envs.InvertedPendulumSwingupBulletEnv,

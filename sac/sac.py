@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 from torch.distributions import Normal
-
+import random
 # alg specific imports
 from .softQnetwork import SoftQNetwork
 from .valuenetwork import ValueNetwork
@@ -16,6 +16,7 @@ class SoftActorCritic(object):
                             value_lr    = 3e-4,
                             soft_q_lr   = 3e-4,
                             policy_lr   = 3e-4,
+                            expert_data = None
                         ):
 
         # set up the networks
@@ -41,6 +42,10 @@ class SoftActorCritic(object):
         # reference the replay buffer
         self.replay_buffer = replay_buffer
 
+        self.expert_data = None
+        if expert_data is not None:
+            self.expert_data = expert_data
+
         self.log = {'value_loss' :[], 'q_value_loss':[], 'policy_loss' :[]}
 
     def soft_q_update(self, batch_size,
@@ -52,53 +57,84 @@ class SoftActorCritic(object):
                       ):
         state, action, reward, next_state, done = self.replay_buffer.sample(batch_size)
 
+        if self.expert_data is not None:
+            batch = random.sample(self.expert_data, batch_size)
+            e_states, e_actions, e_rewards, e_next_states, e_next_actions, e_done \
+                            = map(np.stack, zip(*batch))
+
+            # state = np.concatenate([state, e_states], axis=0)
+            # action = np.concatenate([action, e_actions], axis=0)
+            # reward = np.concatenate([reward, e_rewards], axis=0)
+            # next_state = np.concatenate([next_state, e_next_states], axis=0)
+            # # next_action += e_next_actions
+            # done = np.concatenate([done, e_done], axis=0)
+
         state      = torch.FloatTensor(state)
         next_state = torch.FloatTensor(next_state)
         action     = torch.FloatTensor(action)
         reward     = torch.FloatTensor(reward).unsqueeze(1)
         done       = torch.FloatTensor(np.float32(done)).unsqueeze(1)
 
-        expected_q_value = self.soft_q_net(state, action)
-        expected_value   = self.value_net(state)
-        new_action, log_prob, z, mean, log_std = self.policy_net.evaluate(state)
-
-
-        target_value = self.target_value_net(next_state)
-        next_q_value = reward + (1 - done) * gamma * target_value
-        q_value_loss = self.soft_q_criterion(expected_q_value, next_q_value.detach())
-
-        expected_new_q_value = self.soft_q_net(state, new_action)
-        next_value = expected_new_q_value - log_prob
-        value_loss = self.value_criterion(expected_value, next_value.detach())
-
-        log_prob_target = expected_new_q_value - expected_value
-        policy_loss = (log_prob * (log_prob - log_prob_target).detach()).mean()
-
-
-        mean_loss = mean_lambda * mean.pow(2).mean()
-        std_loss  = std_lambda  * log_std.pow(2).mean()
-        z_loss    = z_lambda    * z.pow(2).sum(1).mean()
-
-        policy_loss += mean_loss + std_loss + z_loss
-
-        self.soft_q_optimizer.zero_grad()
-        q_value_loss.backward()
-        self.soft_q_optimizer.step()
-
-        self.value_optimizer.zero_grad()
-        value_loss.backward()
-        self.value_optimizer.step()
+        e_state = torch.FloatTensor(e_states)
+        e_actions = torch.FloatTensor(e_actions)
+        pred_e_mean, pred_e_log_std = self.policy_net(e_state)
+        pi = Normal(pred_e_mean, pred_e_log_std.exp())
+        expert_loss = -torch.mean(pi.log_prob(e_actions))# - 1e-3 * torch.mean(pi.entropy())
 
         self.policy_optimizer.zero_grad()
-        policy_loss.backward()
+        expert_loss.backward()
         self.policy_optimizer.step()
 
+        self.log['q_value_loss'].append(expert_loss.item())
+        self.log['value_loss'].append(expert_loss.item())
+        self.log['policy_loss'].append(expert_loss.item())
 
-        for target_param, param in zip(self.target_value_net.parameters(), self.value_net.parameters()):
-            target_param.data.copy_(
-                target_param.data * (1.0 - soft_tau) + param.data * soft_tau
-            )
-
-        self.log['q_value_loss'].append(q_value_loss.item())
-        self.log['value_loss'].append(value_loss.item())
-        self.log['policy_loss'].append(policy_loss.item())
+        # expected_q_value = self.soft_q_net(state, action)
+        # expected_value   = self.value_net(state)
+        #
+        #
+        # new_action, log_prob, z, mean, log_std = self.policy_net.evaluate(state)
+        #
+        # pred_e_mean, pred_e_log_std = self.policy_net(e_state)
+        # pi = Normal(pred_e_mean, pred_e_log_std.exp())
+        # expert_loss = - torch.mean(pi.log_prob(e_actions))
+        #
+        # target_value = self.target_value_net(next_state)
+        # next_q_value = reward + (1 - done) * gamma * target_value
+        # q_value_loss = self.soft_q_criterion(expected_q_value, next_q_value.detach())
+        #
+        # expected_new_q_value = self.soft_q_net(state, new_action)
+        # next_value = expected_new_q_value - log_prob
+        # value_loss = self.value_criterion(expected_value, next_value.detach())
+        #
+        # log_prob_target = expected_new_q_value - expected_value
+        # policy_loss = (log_prob * (log_prob - log_prob_target).detach()).mean()
+        #
+        #
+        # mean_loss = mean_lambda * mean.pow(2).mean()
+        # std_loss  = std_lambda  * log_std.pow(2).mean()
+        # z_loss    = z_lambda    * z.pow(2).sum(1).mean()
+        #
+        # policy_loss += mean_loss + std_loss + z_loss + 1e-1*expert_loss
+        #
+        # self.soft_q_optimizer.zero_grad()
+        # q_value_loss.backward()
+        # self.soft_q_optimizer.step()
+        #
+        # self.value_optimizer.zero_grad()
+        # value_loss.backward()
+        # self.value_optimizer.step()
+        #
+        # self.policy_optimizer.zero_grad()
+        # policy_loss.backward()
+        # self.policy_optimizer.step()
+        #
+        #
+        # for target_param, param in zip(self.target_value_net.parameters(), self.value_net.parameters()):
+        #     target_param.data.copy_(
+        #         target_param.data * (1.0 - soft_tau) + param.data * soft_tau
+        #     )
+        #
+        # self.log['q_value_loss'].append(q_value_loss.item())
+        # self.log['value_loss'].append(value_loss.item())
+        # self.log['policy_loss'].append(policy_loss.item())

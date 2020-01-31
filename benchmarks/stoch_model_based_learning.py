@@ -24,7 +24,7 @@ parser.add_argument('--model_lr',   type=float, default=3e-3)
 
 
 parser.add_argument('--horizon', type=int, default=5)
-parser.add_argument('--model_iter', type=int, default=2)
+parser.add_argument('--model_iter', type=int, default=1)
 parser.add_argument('--trajectory_samples', type=int, default=20)
 
 
@@ -38,6 +38,17 @@ parser.set_defaults(render=False)
 
 args = parser.parse_args()
 
+class ActionWrapper(object):
+    def __init__(self, action_space):
+        self.action_space = action_space
+        self.mid = np.mean([action_space.low, action_space.high], axis=0)
+        self.rng = 0.5*(action_space.high-action_space.low)
+
+    def __call__(self, action):
+        # return action
+
+        return self.mid + np.clip(action, -1,1)*self.rng
+
 if __name__ == '__main__':
 
 
@@ -49,7 +60,9 @@ if __name__ == '__main__':
         print('no argument render,  assumping env.render will just work')
         env = envs.env_list[env_name]()
     env.reset()
-    assert np.any(np.abs(env.action_space.low) <= 1.) and  np.any(np.abs(env.action_space.high) <= 1.), 'Action space not normalizd'
+    action_wrapper = ActionWrapper(env.action_space)
+
+    # assert np.any(np.abs(env.action_space.low) <= 1.) and  np.any(np.abs(env.action_space.high) <= 1.), 'Action space not normalizd'
 
     now = datetime.now()
     date_str = now.strftime("%Y-%m-%d_%H-%M-%S/")
@@ -60,9 +73,9 @@ if __name__ == '__main__':
 
     action_dim = env.action_space.shape[0]
     state_dim  = env.observation_space.shape[0]
-    hidden_dim = 128
+    hidden_dim = 12
 
-    model = Model(state_dim, action_dim, def_layers=[200])
+    model = Model(state_dim, action_dim, hidden_dim=128)
 
     replay_buffer_size = 100000
 
@@ -91,7 +104,7 @@ if __name__ == '__main__':
         for step in range(max_steps):
 
             for _ in range(frame_skip):
-                next_state, reward, done, _ = env.step(action.copy())
+                next_state, reward, done, _ = env.step(action_wrapper(action.copy()))
 
             next_action = planner(next_state)
 
@@ -99,7 +112,9 @@ if __name__ == '__main__':
 
             if len(model_replay_buffer) > batch_size:
                 model_optim.update_model(batch_size, mini_iter=args.model_iter)
-
+                print('iter', frame_idx,
+                    'model loss', model_optim.log['model_loss'][-1],
+                    'rew_loss', model_optim.log['rew_loss'][-1])
             state = next_state
             action = next_action
             episode_reward += reward
