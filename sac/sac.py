@@ -69,11 +69,11 @@ class SoftActorCritic(object):
             # # next_action += e_next_actions
             # done = np.concatenate([done, e_done], axis=0)
 
-        state      = torch.FloatTensor(state)
-        next_state = torch.FloatTensor(next_state)
-        action     = torch.FloatTensor(action)
-        reward     = torch.FloatTensor(reward).unsqueeze(1)
-        done       = torch.FloatTensor(np.float32(done)).unsqueeze(1)
+        # state      = torch.FloatTensor(state)
+        # next_state = torch.FloatTensor(next_state)
+        # action     = torch.FloatTensor(action)
+        # reward     = torch.FloatTensor(reward).unsqueeze(1)
+        # done       = torch.FloatTensor(np.float32(done)).unsqueeze(1)
 
         e_state = torch.FloatTensor(e_states)
         e_actions = torch.FloatTensor(e_actions)

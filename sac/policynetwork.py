@@ -6,23 +6,23 @@ import torch.nn.functional as F
 from torch.distributions import Normal
 
 class PolicyNetwork(nn.Module):
-    def __init__(self, num_inputs, num_actions, hidden_size, init_w=3e-2, log_std_min=-10, log_std_max=2):
+    def __init__(self, num_inputs, num_actions, hidden_size, init_w=3e-3, log_std_min=-10, log_std_max=2):
         super(PolicyNetwork, self).__init__()
 
         self.log_std_min = log_std_min
         self.log_std_max = log_std_max
 
         self.linear1 = nn.Linear(num_inputs, hidden_size)
-        self.linear2 = nn.Linear(hidden_size, hidden_size)
-        self.linear3 = nn.Linear(hidden_size, hidden_size)
+        self.linear2 = nn.Linear(hidden_size, int(hidden_size/2))
+        self.linear3 = nn.Linear(int(hidden_size/2), hidden_size)
 
         self.mean_linear = nn.Linear(hidden_size, num_actions)
         self.mean_linear.weight.data.uniform_(-init_w, init_w)
         self.mean_linear.bias.data.uniform_(-init_w, init_w)
 
         self.log_std_linear1 = nn.Linear(num_inputs, hidden_size)
-        self.log_std_linear2 = nn.Linear(hidden_size, hidden_size)
-        self.log_std_linear3 = nn.Linear(hidden_size, num_actions)
+        self.log_std_linear2 = nn.Linear(hidden_size, int(hidden_size/2))
+        self.log_std_linear3 = nn.Linear(int(hidden_size/2), num_actions)
 
         self.log_std_linear3.weight.data.uniform_(-init_w, init_w)
         self.log_std_linear3.bias.data.uniform_(-init_w, init_w)
@@ -46,8 +46,7 @@ class PolicyNetwork(nn.Module):
 
     def evaluate(self, state, epsilon=1e-6):
         mean, log_std = self.forward(state)
-        std = log_std.exp()
-
+        std = torch.clamp(log_std, -10.,2.).exp()
         normal = Normal(mean, std)
         z = normal.sample()
         action = torch.tanh(z)
@@ -61,11 +60,11 @@ class PolicyNetwork(nn.Module):
     def get_action(self, state):
         state = torch.FloatTensor(state).unsqueeze(0)
         mean, log_std = self.forward(state)
-        std = log_std.exp()
+        std = torch.clamp(log_std, -10.,2.).exp()
 
         normal = Normal(mean, std)
-        z      = normal.sample()
-        action = torch.tanh(z)
+        action   = normal.sample()
+        # action = torch.tanh(z)
 
-        action = action.detach().cpu().numpy()
+        action = action.detach().numpy()
         return action[0]

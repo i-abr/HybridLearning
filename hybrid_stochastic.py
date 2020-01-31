@@ -16,6 +16,10 @@ class PathIntegral(object):
 
         self.a = torch.zeros(t_H, self.num_actions)
 
+        self.eps = Normal(torch.zeros(self.samples, self.num_actions),
+                            torch.ones(self.samples, self.num_actions) * 0.1)
+
+
     def reset(self):
         self.a.zero_()
 
@@ -35,23 +39,31 @@ class PathIntegral(object):
             for t in range(self.t_H):
                 pi = Normal(mu, log_std.exp())
                 v = pi.sample()
+                # eps = self.eps.sample()
                 # log_prob.append(pi.log_prob(self.a[t].expand_as(v)).sum(1))
+                # a_eps = self.a[t].expand_as(eps) + eps
                 log_prob.append(pi.log_prob(v).sum(1))
-                da.append(v - self.a[t].expand_as(v))
+                # da.append(v - self.a[t].expand_as(v))
+                da.append(v)
+
+                # da.append(eps)
                 s, rew = self.model.step(s, v)
                 mu, log_std = self.policy(s)
-                sk.append(-rew.squeeze())
+                sk.append(rew.squeeze())
 
             sk = torch.stack(sk)
             sk = torch.cumsum(sk.flip(0), 0).flip(0)
-            sk = sk - torch.min(sk, dim=1, keepdim=True)[0]
+            sk = sk - torch.max(sk, dim=1, keepdim=True)[0]
+            sk /= torch.norm(sk, dim=1, keepdim=True)
             log_prob = torch.stack(log_prob)
             log_prob -= torch.max(log_prob, dim=1, keepdim=True)[0]
-
-            w = torch.exp(-sk.div(self.lam) + log_prob) + 1e-5
+            log_prob /= torch.norm(log_prob, dim=1, keepdim=True)
+            w = torch.exp(sk.div(self.lam) + log_prob) + 1e-5
+            # w = torch.exp(log_prob)
             w.div_(torch.sum(w, dim=1, keepdim=True))
-
+            # print(w, log_prob[-1])
             for t in range(self.t_H):
-                self.a[t] = self.a[t] + torch.mv(da[t].T, w[t])
+                # self.a[t] = self.a[t] + torch.mv(da[t].T, w[t])
+                self.a[t] = torch.mv(da[t].T, w[t])
 
-            return np.clip(self.a[0].clone().numpy(), -1,1)
+            return self.a[0].clone().numpy()

@@ -10,7 +10,7 @@ from .jacobian import jacobian
 
 class ModelOptimizer(object):
 
-    def __init__(self, model, replay_buffer, lr=1e-2, eps=1e-1, lam=0., expert_data=None):
+    def __init__(self, model, replay_buffer, lr=1e-2, eps=1e-1, lam=0.1, expert_data=None):
 
         # reference the model and buffer
         self.model          = model
@@ -33,17 +33,17 @@ class ModelOptimizer(object):
         for k in range(mini_iter):
             states, actions, rewards, next_states, next_actions, done = self.replay_buffer.sample(batch_size)
 
-            if self.expert_data is not None:
-                batch = random.sample(self.expert_data, batch_size)
-                e_states, e_actions, e_rewards, e_next_states, e_next_actions, e_done \
-                            =  map(np.stack, zip(*batch))
-
-                states = np.concatenate([states, e_states], axis=0)
-                actions = np.concatenate([actions, e_actions], axis=0)
-                rewards = np.concatenate([rewards, e_rewards], axis=0)
-                next_states = np.concatenate([next_states, e_next_states], axis=0)
-                next_actions = np.concatenate([next_actions, e_next_actions], axis=0)
-                done = np.concatenate([done, e_done], axis=0)
+            # if self.expert_data is not None:
+            #     batch = random.sample(self.expert_data, batch_size)
+            #     e_states, e_actions, e_rewards, e_next_states, e_next_actions, e_done \
+            #                 =  map(np.stack, zip(*batch))
+            #
+            #     states = np.concatenate([states, e_states], axis=0)
+            #     actions = np.concatenate([actions, e_actions], axis=0)
+            #     rewards = np.concatenate([rewards, e_rewards], axis=0)
+            #     next_states = np.concatenate([next_states, e_next_states], axis=0)
+            #     next_actions = np.concatenate([next_actions, e_next_actions], axis=0)
+            #     done = np.concatenate([done, e_done], axis=0)
 
             states = torch.FloatTensor(states)
             # states.requires_grad = True
