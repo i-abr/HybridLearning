@@ -35,9 +35,9 @@ class sawyer_env(object):
         self.hold = False
 
         # set up tf
-        self.state = self.setup_tf()
+        self.state = self.setup_transforms()
 
-    def setup_tf(self):
+    def setup_transforms(self):
         target_transform = self.setup_transform_between_frames( 'target','block2')
         ee_transform = self.setup_transform_between_frames('target','ee')
         try:
@@ -76,25 +76,24 @@ class sawyer_env(object):
 
         self.wall = False
         resp = self.reset_arm()
-        self.state = self.setup_tf()
+        self.state = self.setup_transforms()
 
         self.hold = False
         return self.state.copy()
 
     def step(self, _a):
         if (self.wall == False):
-            # print('action',_a)
             # theta = (np.pi/4)*np.clip(_a[2],-1,1)  # keep april tags in view
             action = 0.2*np.clip(_a, -1,1)
-            # action = np.clip(_a, -0.2,0.2)
-            # print('clipped action',action)
-            # publishes action input
+
+            # publish action input
             pose = RelativeMove()
             pose.dx = action[0]
             pose.dy = action[1]
             # pose.dtheta = theta
             self.move.publish(pose)
-            # gets the new state
+
+            # get new state
             self.get_transforms()
             reward, done = self.reward_function()
         else:
@@ -103,7 +102,6 @@ class sawyer_env(object):
             reward = -100
         return self.state.copy(), reward, done
 
-        # returns reward state and if it's outside bounds
     def reward_function(self):
         [dx_targetToArm, dy_targetToArm, dx_targetToBlock, dy_targetToBlock] = self.state.copy()
 

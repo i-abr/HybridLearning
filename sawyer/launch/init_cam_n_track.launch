@@ -3,6 +3,7 @@
     <arg name="image_viewer" default ="False" />
     <arg name="rviz" default ="True" />
     <arg name="ik_move" default ="True" />
+    <arg name="plot_gui" default ="True" />
 
     <!-- This node launches the usb camera at video node 2 -->
     <node name="usb_cam1" pkg="usb_cam" type="usb_cam_node" output="screen" >
@@ -51,5 +52,8 @@
 
     <!-- This here opens rviz  -->
     <node name="rviz" pkg="rviz" type="rviz" args="-d $(find sawyer)/config/april_tags.rviz" if="$(arg rviz)" />
+
+    <!-- rqt_plot allows you to see the relative_move commands -->
+    <node name = "rqt_plot" pkg="rqt_plot" type="rqt_plot" args="/puck/relative_move" if="$(arg plot_gui)"/>
 
 </launch>

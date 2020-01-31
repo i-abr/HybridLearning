@@ -50,8 +50,8 @@ class go_to_pose(object):
         rospy.Subscriber('/puck/relative_move',RelativeMove,self.pose_callback)
 
         # set up controller
-        self.c = 0.4 #0.5
-        self.alpha = 0.8 # [0,1]
+        self.c = 0.5
+        self.alpha = 0.7 # [0,1]
         self.joint_names = self.limb.joint_names()
         self.reset_theta = dict()
         for name in self.joint_names:
@@ -85,7 +85,7 @@ class go_to_pose(object):
         return angle_new
 
     def pose_callback(self,data):
-        print(data)
+        # print(data)
         # solve inverse kinematics
         ikreq = SolvePositionIKRequest()
 
@@ -93,7 +93,6 @@ class go_to_pose(object):
         # rospy.loginfo("Current Pose:\n%s", current_pose)
 
         # relative move
-        # create kdl frame from relative pose
         theta = np.arctan2(copy(data.dy), copy(data.dx))
         theta = self.normalize_angle(copy(theta)) # limit angles to +/- pi/2 for april tag visibility
 
