@@ -38,7 +38,7 @@ class Model(nn.Module):
         #     var = 'rew_layer' + str(i)
         #     setattr(self, var, nn.Linear(insize, outsize))
 
-        self.log_std = nn.Parameter(torch.ones(1, num_states) * std)
+        self.log_std = nn.Parameter(torch.randn(1, num_states) * 3e-3)
 
         # self.log_std = nn.Sequential(
         #     nn.Linear(def_layers[-1], def_layers[-1]),

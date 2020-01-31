@@ -35,6 +35,7 @@ from intera_interface import Limb
 # import PyKDL # for relative pose movements...
 from tf_conversions import transformations # , posemath # for relative pose movements...
 import time
+from copy import copy, deepcopy
 
 class go_to_pose(object):
     def __init__(self):
@@ -46,11 +47,11 @@ class go_to_pose(object):
 
         # set up sawyer
         self.limb = Limb()
-        self.in_tip_frame = False
+        # self.in_tip_frame = False
         self.tip_name = 'right_hand'
-        self.endpoint_state = self.limb.tip_state(self.tip_name)
-        if self.endpoint_state is None:
-            rospy.logerr('Endpoint state not found with tip name %s', self.tip_name)
+        # self.endpoint_state = self.limb.tip_state(self.tip_name)
+        # if self.endpoint_state is None:
+        #     rospy.logerr('Endpoint state not found with tip name %s', self.tip_name)
 
         # setup ros
         s = rospy.Service('/puck/reset', Empty, self.reset)
@@ -58,17 +59,18 @@ class go_to_pose(object):
 
         # set up controller
         self.c = 0.5
-        self.alpha = 0.8 # [0,1]
+        self.alpha = 0.6 # [0,1]
         self.joint_names = self.limb.joint_names()
-        self.delta_theta = dict()
+        self.reset_theta = dict()
         for name in self.joint_names:
-            self.delta_theta[name] = 0.0
+            self.reset_theta[name] = 0.0
+        self.delta_theta = copy(self.reset_theta)
 
         # initalize with current joint angles
         self.desired_theta = self.limb.joint_angles()
-        self.home_orientation = Quaternion(0, 1, 0, 0)
-        quaternion = (self.home_orientation.x, self.home_orientation.y,
-                      self.home_orientation.z, self.home_orientation.w)
+        home_orientation = Quaternion(0, 1, 0, 0)
+        quaternion = (home_orientation.x, home_orientation.y,
+                      home_orientation.z, home_orientation.w)
         self.euler = transformations.euler_from_quaternion(quaternion)
         # self.last_theta = 0
 
@@ -78,7 +80,7 @@ class go_to_pose(object):
         home_pose = [-0.2, -0.6, 0.0, 1.9, 0.0, 0.3, 1.571];
         self.home_joints = dict(zip(self.joint_names, home_pose))
         self.limb.set_joint_position_speed(speed=0.6)
-        self.limb.set_joint_positions(self.home_joints)
+        self.limb.set_joint_positions(copy(self.home_joints))
 
         self.update_velocities()
 
@@ -94,7 +96,7 @@ class go_to_pose(object):
         # solve inverse kinematics
         ikreq = SolvePositionIKRequest()
 
-        current_pose = Limb().tip_state(self.tip_name).pose # get current state
+        current_pose = self.limb.tip_state(self.tip_name).pose # get current state
         rospy.loginfo("Current Pose:\n%s", current_pose)
 
         # relative move
@@ -167,9 +169,9 @@ class go_to_pose(object):
                 current_theta = self.limb.joint_angles()
 
                 for name in self.joint_names:
-                    delta_theta_raw[name] = self.desired_theta[name] - current_theta[name]
-                    self.delta_theta[name] = self.alpha*self.delta_theta[name] + (1-self.alpha)*delta_theta_raw[name]
-                    joint_velocities[name] = self.c*self.delta_theta[name]
+                    delta_theta_raw[name] = copy(self.desired_theta[name]) - current_theta[name]
+                    self.delta_theta[name] = copy(self.alpha)*copy(self.delta_theta[name]) + (1-copy(self.alpha))*delta_theta_raw[name]
+                    joint_velocities[name] = copy(self.c)*self.delta_theta[name]
 
                 # rospy.loginfo("New Velocities: %s", joint_velocities)
                 # rospy.loginfo("------------")
@@ -187,14 +189,16 @@ class go_to_pose(object):
         time.sleep(2)
 
         # reset parameters
-        for name in self.joint_names:
-            self.delta_theta[name] = 0.0
-        self.desired_theta = self.home_joints
-        # self.last_theta = 0
+        # self.delta_theta = copy(self.reset_theta)
 
         # move to home
         self.limb.set_joint_position_speed(speed=0.2)
-        self.limb.move_to_joint_positions(self.home_joints, timeout=15.0)
+        self.limb.move_to_joint_positions(copy(self.home_joints), timeout=15.0)
+
+        # reset parameters
+        self.delta_theta = copy(self.reset_theta)
+        self.desired_theta = copy(self.home_joints)
+
         rospy.loginfo("Reset Pose")
         time.sleep(2)
         self.reset_arm = 0
@@ -204,7 +208,7 @@ class go_to_pose(object):
         # solve inverse kinematics
         ikreq = SolvePositionIKRequest()
 
-        current_pose = Limb().tip_state(self.tip_name).pose # get current state
+        current_pose = self.limb.tip_state(self.tip_name).pose # get current state
 
         pose = current_pose
         pose.position.z += 0.06
@@ -218,6 +222,7 @@ class go_to_pose(object):
         ikreq.pose_stamp.append(poseStamped)
         ikreq.tip_names.append('right_hand') # for each pose in IK
 
+        limb_joints = copy(self.home_joints)
         try:
             resp = self.iksvc(ikreq)
 
