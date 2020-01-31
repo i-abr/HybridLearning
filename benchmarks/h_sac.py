@@ -1,3 +1,8 @@
+#! /usr/bin/env python
+"""
+imports
+"""
+# general
 import numpy as np
 import pickle
 from datetime import datetime
@@ -6,9 +11,11 @@ import sys
 import os
 sys.path.append('../')
 
-# local imports
-# import envs
+import argparse
+from copy import copy, deepcopy
+import time
 
+# model
 import torch
 from sac import SoftActorCritic
 from sac import PolicyNetwork
@@ -17,16 +24,19 @@ from sac import ReplayBuffer
 from hybrid_stochastic import PathIntegral
 from model import ModelOptimizer, Model, SARSAReplayBuffer
 # from model import MDNModelOptimizer, MDNModel
-# argparse things
-import argparse
 
-from copy import copy, deepcopy
+# ros
+import rospy
+from sawyer_env import sawyer_env
 
+"""
+arg parse things
+"""
 parser = argparse.ArgumentParser()
 # parser.add_argument('--env',        type=str,   help=envs.getlist())
 parser.add_argument('--max_steps',  type=int,   default=500)
 parser.add_argument('--max_frames', type=int,   default=10000)
-parser.add_argument('--frame_skip', type=int,   default=2)
+# parser.add_argument('--frame_skip', type=int,   default=2)
 parser.add_argument('--model_lr',   type=float, default=3e-4)
 parser.add_argument('--policy_lr',  type=float, default=3e-3)
 parser.add_argument('--value_lr',   type=float, default=3e-4)
@@ -48,138 +58,11 @@ parser.add_argument('--lam',  type=float, default=1)
 
 args = parser.parse_args()
 
-# sawyer additions
-import rospy
-from sawyer.msg import RelativeMove
-from geometry_msgs.msg import Pose2D
-from std_srvs.srv import Empty, EmptyResponse
-import tf
-import time
-from intera_core_msgs.msg import EndpointState
-# from intera_interface import Limb
-
-class sawer_env(object):
-    def __init__(self):
-        # set up ros
-        self.move = rospy.Publisher('/puck/relative_move',RelativeMove,queue_size=1)
-        self.reset_arm = rospy.ServiceProxy('/puck/reset', Empty)
-        rospy.wait_for_service('/puck/reset', 5.0)
-        self.listener = tf.TransformListener()
-        s = rospy.Service('/puck/done', Empty, self.doneCallback)
-
-        # set up sawyer
-        self.limb = rospy.Subscriber("/robot/limb/right/endpoint_state", EndpointState, self.check_workspace)
-        self.wall = False
-
-        # set up tf
-        target_transform = self.setup_transform_between_frames( 'target','block2')
-        ee_transform = self.setup_transform_between_frames('target','ee')
-        try:
-            self.state = np.array([ee_transform[0],ee_transform[1],target_transform[0],target_transform[1]])
-        except:
-            print("Check that all april tags are visible")
-
-    def setup_transform_between_frames(self, reference_frame, target_frame):
-        time_out = 0.5
-        start_time = time.time()
-        while(True):
-            try:
-                translation, rot_quaternion = self.listener.lookupTransform(reference_frame, target_frame, rospy.Time(0))
-                break
-            except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
-                if((time.time()- start_time) > time_out):
-                    return None
-        return translation
-
-    def get_transforms(self):
-        try:
-            target_transform, _ = self.listener.lookupTransform( 'target','block2', rospy.Time(0))
-            ee_transform, _ = self.listener.lookupTransform( 'target','ee', rospy.Time(0))
-
-            self.state = (1-0.8)*self.state + 0.8*np.array([ee_transform[0],ee_transform[1],target_transform[0],target_transform[1]])
-            # state = np.array([dx_targetToArm, dy_targetToArm, dx_targetToBlock, dy_targetToBlock])
-        except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
-            pass
-
-
-    def reset(self):
-        resp = self.reset_arm()
-        self.get_transforms()
-        return self.state.copy()
-
-    def step(self, _a):
-        # check if in workspace
-        # wall = self.check_workspace()
-        # wall = False
-        if (self.wall == False):
-            theta = (np.pi/4)*np.clip(_a[2],-1,1)  # keep april tags in view
-            action = 0.2*np.clip(_a, -1,1)
-            # publishes action input
-            pose = RelativeMove()
-            pose.dx = action[0]
-            pose.dy = action[1]
-            pose.dtheta = theta
-            self.move.publish(pose)
-            # gets the new state
-            self.get_transforms()
-            reward, done = self.reward_function()
-        else:
-            done = True
-            reward = -100
-        return self.state.copy(), reward, done
-
-        # returns reward state and if it's outside bounds
-    def reward_function(self):
-        [dx_targetToArm, dy_targetToArm, dx_targetToBlock, dy_targetToBlock] = self.state.copy()
-
-        arm_to_block = np.sqrt((dx_targetToArm-dx_targetToBlock)**2+
-                        (dy_targetToArm-dy_targetToBlock)**2)
-
-        # block_to_target = np.sqrt(dx_targetToBlock**2+dy_targetToBlock**2)
-        reward = 0
-        done = False
-        thresh = 0.08
-        # if (arm_to_block > thresh):
-        reward += -arm_to_block
-        if (arm_to_block < 0.15):
-            reward += 1
-        # reward += -block_to_target
-
-        if (arm_to_block < thresh):
-        # if (block_to_target < thresh):
-            done = True
-            reward += 10
-            print('Reached goal!')
-
-        # rospy.loginfo("arm_to_block: %f, block_to_target: %f, reward: %f", arm_to_block, block_to_target, reward)
-        rospy.loginfo("action reward: %f", reward)
-        rospy.loginfo("block dist: %f", arm_to_block)
-        # rospy.loginfo("target dist: %f", block_to_target)
-
-        return reward, done
-
-    def check_workspace(self,current_pose):
-        # current_pose = Limb().tip_state('right_hand').pose # get current state
-        # make sure ee stays in workspace
-        if ((current_pose.pose.position.x > 0.85) or (current_pose.pose.position.x < 0.45)
-        or (current_pose.pose.position.y > 0.3) or (current_pose.pose.position.y < -0.25)):
-            wall = True
-            print('edge of workspace')
-        else:
-            wall = False
-        self.wall = wall
-        # return wall
-
-    def doneCallback(self,req):
-        self.wall = True
-        print('manual done called')
-        return EmptyResponse()
-
 if __name__ == '__main__':
     try:
         rospy.init_node('h_sac')
 
-        env = sawer_env()
+        env = sawyer_env()
 
         env_name = 'sawyer'
         now = datetime.now()
@@ -189,8 +72,8 @@ if __name__ == '__main__':
         if os.path.exists(path) is False:
             os.makedirs(path)
 
-        action_dim = 3 # env.action_space.shape[0]
-        state_dim  = 4 # env.observation_space.shape[0]
+        action_dim = 2
+        state_dim  = 4
         hidden_dim = 128
 
         policy_net = PolicyNetwork(state_dim, action_dim, hidden_dim)
@@ -215,7 +98,7 @@ if __name__ == '__main__':
 
         max_frames = args.max_frames
         max_steps  = args.max_steps
-        frame_skip = args.frame_skip
+        # frame_skip = args.frame_skip
 
         frame_idx  = 0
         rewards    = []
@@ -226,7 +109,10 @@ if __name__ == '__main__':
         rate=rospy.Rate(20)
 
         while frame_idx < max_frames:
+            rospy.loginfo("start loop")
             state = env.reset()
+            rospy.loginfo("get state after reset")
+
             planner.reset()
 
             action = planner(state.copy())
@@ -262,8 +148,8 @@ if __name__ == '__main__':
 
                 # if args.render:
                 #     env.render("human"
-                print(len(rewards), len(model_optim.log['rew_loss']))
-                print(episode_reward)
+                # print(len(rewards), len(model_optim.log['rew_loss']))
+                # print(episode_reward)
                 if (frame_idx % int(max_frames/20) == 0) and (len(replay_buffer) > batch_size):
                     # print(
                     #     'frame : {}/{}, \t last rew : {}, \t rew loss : {}'.format(
@@ -295,5 +181,4 @@ if __name__ == '__main__':
         torch.save(policy_net.state_dict(), path + 'policy_' + 'final' + '.pt')
 
     except KeyboardInterrupt, rospy.ROSInterruptException:
-        # env.reset()
         os._exit(0)
