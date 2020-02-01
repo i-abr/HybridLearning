@@ -2,7 +2,7 @@ import torch
 from torch.distributions import Normal
 import numpy as np
 
-class Planner(object):
+class PathIntegral(object):
 
     def __init__(self, model, policy, samples=10, t_H=10, lam=0.1):
 
