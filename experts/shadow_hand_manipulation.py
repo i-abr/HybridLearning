@@ -52,6 +52,7 @@ def main():
     while succ_trials < max_iter:
         print('succ attempt {} out of {}, max {}'.format(succ_trials, attempts, max_iter))
         obs = env.reset()
+        print(obs.shape)
         # model.reset_model(env.target_pos, env.target_config)
         model.reset_model(env.target_config)
         # local_log = {'states' : [], 'actions' : [], 'next_states' : []}
@@ -79,9 +80,8 @@ def main():
             u_seq[-1]  = np.zeros(env.action_space.shape[0])
 
 
-        if not done:
-            log += local_log
-            succ_trials += 1
+        log.append(local_log)
+        succ_trials += 1
         attempts += 1
         pickle.dump(log, open( "./data/shadow_hand/cube_manip/demonstrations.pkl", "wb" ) )
 

@@ -40,6 +40,8 @@ def main():
   pi = SmallReactivePolicy(env.observation_space, env.action_space)
   env.reset()
 
+  print(env.observation_space.shape)
+
   demonstrations = {
       'state' : [],
       'action' : [],
@@ -58,7 +60,7 @@ def main():
     # while 1:
     for t in range(400):
       # time.sleep(1. / 60.)
-      a = pi.act(obs)
+      a = pi.act(obs) + np.random.normal(0., 0.1, size=env.action_space.shape)
       next_obs, r, done, _ = env.step(a)
 
       demonstrations['state'].append(obs)
