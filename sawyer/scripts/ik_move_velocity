@@ -48,6 +48,7 @@ class go_to_pose(object):
         # setup ros
         rospy.Service('/puck/reset', Trigger, self.reset)
         rospy.Subscriber('/puck/relative_move',RelativeMove,self.pose_callback)
+        self.reset_sawyer_env = rospy.ServiceProxy('/puck/done', Trigger)
 
         # set up controller
         self.c = 0.5
@@ -126,6 +127,7 @@ class go_to_pose(object):
             else:
                 rospy.logerr("INVALID POSE - No Valid Joint Solution Found.")
                 rospy.logerr("Result Error %d", resp.result_type[0])
+                resp = self.reset_sawyer_env()
 
         except (rospy.ServiceException, rospy.ROSException), e:
             rospy.logerr("Service call failed: %s" % (e,))

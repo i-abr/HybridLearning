@@ -28,7 +28,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: ""
+    SyncSource: Image
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -61,8 +61,14 @@ Visualization Manager:
         All Enabled: false
         base:
           Value: false
+        block2:
+          Value: true
+        camera1:
+          Value: true
         controller_box:
           Value: false
+        ee:
+          Value: true
         head:
           Value: false
         head_camera:
@@ -189,6 +195,10 @@ Visualization Manager:
           Value: false
         screen:
           Value: false
+        target:
+          Value: true
+        top:
+          Value: true
         torso:
           Value: false
         world:
@@ -199,7 +209,15 @@ Visualization Manager:
       Show Axes: true
       Show Names: true
       Tree:
-        {}
+        camera1:
+          block2:
+            {}
+          ee:
+            {}
+          target:
+            {}
+          top:
+            {}
       Update Interval: 0
       Value: true
     - Class: rviz/Image
@@ -218,7 +236,7 @@ Visualization Manager:
   Global Options:
     Background Color: 48; 48; 48
     Default Light: true
-    Fixed Frame: camera1
+    Fixed Frame: target
     Frame Rate: 30
   Name: root
   Tools:
@@ -242,25 +260,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 4.014959335327148
+      Distance: 0.912568211555481
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0.25781309604644775
-        Y: 0.3075306713581085
-        Z: 0.6675959229469299
+        X: -0.024610435590147972
+        Y: 0.2291444092988968
+        Z: 0.6838291883468628
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: -0.004601503722369671
+      Pitch: 1.3253977298736572
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 3.6835362911224365
+      Yaw: 1.6185386180877686
     Saved: ~
 Window Geometry:
   Displays:

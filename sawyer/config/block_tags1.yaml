@@ -22,10 +22,10 @@ standalone_tags:
     {id: 3, size: 0.0464, name: target},
     {id: 10, size: 0.0464, name: ee},
     {id: 6, size: 0.0464, name: block1},
-    {id: 7, size: 0.0464, name: block2}, # top
-    {id: 8, size: 0.0464, name: block3},
-    {id: 9, size: 0.0464, name: block4},
-    {id: 11, size: 0.0464, name: block5},
+    {id: 7, size: 0.0464, name: top},
+    {id: 8, size: 0.0464, name: block2},
+    {id: 9, size: 0.0464, name: block3},
+    {id: 11, size: 0.0464, name: block4},
     # {id: 1, size: 0.0464}
   ]
 # ## Tag bundle definitions
