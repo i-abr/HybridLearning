@@ -28,7 +28,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: Image
+    SyncSource: ""
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -61,14 +61,8 @@ Visualization Manager:
         All Enabled: false
         base:
           Value: false
-        block2:
-          Value: true
-        camera1:
-          Value: true
         controller_box:
           Value: false
-        ee:
-          Value: true
         head:
           Value: false
         head_camera:
@@ -195,10 +189,6 @@ Visualization Manager:
           Value: false
         screen:
           Value: false
-        target:
-          Value: true
-        top:
-          Value: true
         torso:
           Value: false
         world:
@@ -209,15 +199,7 @@ Visualization Manager:
       Show Axes: true
       Show Names: true
       Tree:
-        camera1:
-          block2:
-            {}
-          ee:
-            {}
-          target:
-            {}
-          top:
-            {}
+        {}
       Update Interval: 0
       Value: true
     - Class: rviz/Image

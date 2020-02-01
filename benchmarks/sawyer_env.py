@@ -34,7 +34,7 @@ class sawyer_env(object):
         self.wall = False
         self.hold = False
         self.reset_test = False
-        self.allowed_actions = 0
+        self.actions = 0
 
         # set up tf
         self.state = self.setup_transforms()
@@ -97,43 +97,25 @@ class sawyer_env(object):
 
     def step(self, _a):
         if (self.reset_test == False):
-            if (self.wall == False):
-                # theta = (np.pi/4)*np.clip(_a[2],-1,1)  # keep april tags in view
-                action = 0.2*np.clip(_a, -1,1)
-            else:
-                action = 0.2*np.clip(_a, -1,1)
-                if (self.allowed_actions == 1):
-                # (current_pose.pose.position.x > 0.85):
-                # (current_pose.pose.position.y > 0.3):
-                    action = np.clip(copy(action), -1,0)
-                elif (self.allowed_actions == 2):
-                # (current_pose.pose.position.x > 0.85):
-                # (current_pose.pose.position.y < -0.25):
+            # theta = (np.pi/4)*np.clip(_a[2],-1,1)  # keep april tags in view
+            action = 0.2*np.clip(_a, -1,1)
+            if (self.wall == True):
+                print('edge of workspace')
+                print('case: ',self.allowed_actions)
+
+                if (self.allowed_actions[0] == -1):
+                # (current_pose.pose.position.x > max_x):
                     action[0] = np.clip(copy(action[0]), -1,0)
-                    action[1] = np.clip(copy(action[1]), 0,1)
-                elif (self.allowed_actions) == 3):
-                # (current_pose.pose.position.x > 0.85):
-                    action[0] = np.clip(copy(action[0]), -1,0)
-                elif (self.allowed_actions == 4):
-                # (current_pose.pose.position.x < 0.45):
-                #(current_pose.pose.position.y > 0.3):
+                elif (self.allowed_actions[0] == 1):
+                #(current_pose.pose.position.x < min_x):
                     action[0] = np.clip(copy(action[0]), 0,1)
+
+                if (self.allowed_actions[1] == -1):
+                # (current_pose.pose.position.y > max_y):
                     action[1] = np.clip(copy(action[1]), -1,0)
-                elif (self.allowed_actions == 5):
-                # (current_pose.pose.position.x < 0.45):
-                #(current_pose.pose.position.y < -0.25):
-                    action = np.clip(copy(action), 0,1)
-                elif (self.allowed_actions == 6):
-                # (current_pose.pose.position.x < 0.45):
-                    action[0] = np.clip(copy(action[0]), 0,1)
-                elif (self.allowed_actions == 7):
-                #(current_pose.pose.position.y > 0.3):
-                    action[1] = np.clip(copy(action[1]), -1,0)
-                elif (self.allowed_actions == 8):
-                #(current_pose.pose.position.y < -0.25):
+                elif (self.allowed_actions[1] == 1):
+                #(current_pose.pose.position.y < min_y):
                     action[1] = np.clip(copy(action[1]), 0,1)
-                else:
-                    print('error in allow_actions cases implementation')
 
             # publish action input
             pose = RelativeMove()
@@ -164,16 +146,17 @@ class sawyer_env(object):
         reward = 0
         done = False
         thresh = 0.08
-        if (arm_to_block > thresh):
-            reward += -arm_to_block
-        if (arm_to_block < thresh):
+        # if (arm_to_block > thresh):
+        reward += -arm_to_block
+        # if (arm_to_block < thresh):
+        if (arm_to_block < thresh*2):
             reward += 1
-            reward += -block_to_target
+            # reward += -block_to_target
         if (self.wall == True):
             reward += -1
 
-        # if (arm_to_block < thresh):
-        if (block_to_target < thresh):
+        if (arm_to_block < thresh):
+        # if (block_to_target < thresh):
             done = True
             reward += 10
             print('Reached goal!')
@@ -186,36 +169,27 @@ class sawyer_env(object):
         return reward, done
 
     def check_workspace(self,current_pose):
+        max_x = 0.85
+        min_x = 0.5 # 0.45
+        max_y = 0.15 #0.3
+        min_y = -0.15 #-0.25
+
         # prevent callback from accessing self.wall during reset
         if (self.hold == False):
             # make sure ee stays in workspace
             self.wall = False
-            if ((current_pose.pose.position.x > 0.85) or (current_pose.pose.position.x < 0.45)
-            or (current_pose.pose.position.y > 0.3) or (current_pose.pose.position.y < -0.25)):
+            if ((current_pose.pose.position.x > max_x) or (current_pose.pose.position.x < min_x)
+            or (current_pose.pose.position.y > max_y) or (current_pose.pose.position.y < min_y)):
                 self.wall = True
-                if (current_pose.pose.position.x > 0.85):
-                    if (current_pose.pose.position.y > 0.3):
-                        self.allowed_actions = 1
-                    elif(current_pose.pose.position.y < -0.25):
-                        self.allowed_actions = 2
-                    else:
-                        self.allowed_actions = 3
-                elif(current_pose.pose.position.x < 0.45):
-                    if (current_pose.pose.position.y > 0.3):
-                        self.allowed_actions = 4
-                    elif(current_pose.pose.position.y < -0.25):
-                        self.allowed_actions = 5
-                    else:
-                        self.allowed_actions = 6
-                else:
-                    if (current_pose.pose.position.y > 0.3):
-                        self.allowed_actions = 7
-                    elif(current_pose.pose.position.y < -0.25):
-                        self.allowed_actions = 8
-                    else:
-                        print('error in allow_actions cases selection')
-                print('case: ',self.allowed_actions)
-                print('edge of workspace')
+                self.allowed_actions = [0,0]
+                if (current_pose.pose.position.x > max_x):
+                    self.allowed_actions[0] = -1
+                elif (current_pose.pose.position.x < min_x):
+                    self.allowed_actions[0] = 1
+                if (current_pose.pose.position.y > max_y):
+                    self.allowed_actions[1] = -1
+                elif(current_pose.pose.position.y < min_y):
+                    self.allowed_actions[1] = 1
 
     def doneCallback(self,req):
         self.reset_test = True

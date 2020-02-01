@@ -37,7 +37,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--max_steps',  type=int,   default=500)
 parser.add_argument('--max_frames', type=int,   default=10000)
 # parser.add_argument('--frame_skip', type=int,   default=2)
-parser.add_argument('--model_lr',   type=float, default=3e-4)
+parser.add_argument('--model_lr',   type=float, default=3e-3)
 parser.add_argument('--policy_lr',  type=float, default=3e-3)
 parser.add_argument('--value_lr',   type=float, default=3e-4)
 parser.add_argument('--soft_q_lr',  type=float, default=3e-4)
@@ -132,8 +132,8 @@ if __name__ == '__main__':
                 replay_buffer.push(state, action, reward, next_state, done)
                 model_replay_buffer.push(state, action, reward, next_state, next_action, done)
 
-                if len(replay_buffer) > batch_size:
-                    # if frame_idx > 20:
+                # if len(replay_buffer) > batch_size:
+                if frame_idx > 20:
                     # for _ in range(10):
                     sac.soft_q_update(batch_size);
                     model_optim.update_model(batch_size, mini_iter=args.model_iter)
