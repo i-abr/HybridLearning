@@ -32,13 +32,13 @@ import time
 parser = argparse.ArgumentParser()
 parser.add_argument('--env',        type=str,   help=envs.getlist())
 parser.add_argument('--max_steps',  type=int,   default=200)
-parser.add_argument('--max_frames', type=int,   default=10000)
+parser.add_argument('--max_frames', type=int,   default=6000)
 parser.add_argument('--frame_skip', type=int,   default=2)
-parser.add_argument('--model_lr',   type=float, default=3e-3)
+parser.add_argument('--model_lr',   type=float, default=0.01)
 parser.add_argument('--policy_lr',  type=float, default=3e-3)
 
 parser.add_argument('--horizon', type=int, default=5)
-parser.add_argument('--model_iter', type=int, default=2)
+parser.add_argument('--model_iter', type=int, default=1)
 parser.add_argument('--trajectory_samples', type=int, default=20)
 parser.add_argument('--lam',  type=float, default=1.0)
 
@@ -119,7 +119,7 @@ if __name__ == '__main__':
 
     frame_idx   = 0
     rewards     = []
-    batch_size  = 64
+    batch_size  = 128
 
     # env.camera_adjust()
     ep_num = 0
@@ -129,7 +129,7 @@ if __name__ == '__main__':
 
         expert_action = expert_policy.act(state)
         action = planner(state)
-        action = expert_action
+        # action = expert_action
         episode_reward = 0
         for step in range(max_steps):
 
@@ -141,8 +141,8 @@ if __name__ == '__main__':
             next_action = planner(next_state)
             if random.random() < beta:
                 next_action = next_expert_action.copy()
-            else:
-                next_expert_action = None
+            # else:
+            #     next_expert_action = None
             model_replay_buffer.push(state, action, reward, next_state, next_action, done)
 
             if expert_action is not None:
@@ -151,10 +151,10 @@ if __name__ == '__main__':
             if len(buffer) > batch_size:
                 optimizer.update_policy(batch_size)
                 model_optim.update_model(batch_size, mini_iter=args.model_iter)
-                print('iter', frame_idx,
-                    'model loss', model_optim.log['model_loss'][-1],
-                    'rew_loss', model_optim.log['rew_loss'][-1],
-                    'policy_loss', optimizer.log['loss'][-1])
+                # print('iter', frame_idx,
+                #     'model loss', model_optim.log['model_loss'][-1],
+                #     'rew_loss', model_optim.log['rew_loss'][-1],
+                #     'policy_loss', optimizer.log['loss'][-1])
 
             state = next_state
             action = next_action
@@ -183,13 +183,13 @@ if __name__ == '__main__':
         #     if len(replay_buffer) > batch_size:
         #         sac.soft_q_update(batch_size)
         #         model_optim.update_model(batch_size, mini_iter=args.model_iter)
-        beta *= 0.5
         if len(buffer) > batch_size:
-            print('ep rew', ep_num, episode_reward)
+            print('ep rew', ep_num, episode_reward, 'beta', beta)
             # , model_optim.log['rew_loss'][-1], model_optim.log['loss'][-1])
             # print('ssac loss', sac.log['value_loss'][-1], sac.log['policy_loss'][-1], sac.log['q_value_loss'][-1])
         rewards.append([frame_idx, episode_reward])
         ep_num += 1
+        beta *= 0.2
     print('saving final data set')
     pickle.dump(rewards, open(path + 'reward_data'+ '.pkl', 'wb'))
     torch.save(policy_net.state_dict(), path + 'policy_' + 'final' + '.pt')

@@ -64,7 +64,7 @@ class ModelOptimizer(object):
             rew_loss = torch.mean(torch.pow((rewards+self._lam*(1-done)*next_vals).detach() - pred_rew,2))
             # rew_loss = torch.mean(torch.pow(rewards - pred_rew,2))
 
-            model_loss = -torch.mean(state_dist.log_prob(next_states))# + self._eps * torch.norm(df, dim=[1,2]).mean()
+            model_loss = -torch.mean(state_dist.log_prob(next_states)) #+ self._eps * torch.norm(df, dim=[1,2]).mean()
             # - 1e-3*pred_next_state_dist.entropy().mean()
 
             loss = 0.5 * rew_loss + model_loss

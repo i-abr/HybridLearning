@@ -5,7 +5,7 @@ do
     python3 h_sac.py \
                 --env AntBulletEnv \
                 --max_steps 400 \
-                --max_frames 10000 \
+                --max_frames 6000 \
                 --horizon 40 \
                 --frame_skip 1 \
                 --lam 0.1 \

@@ -68,6 +68,6 @@ class Policy(nn.Module):
         log_std = self.vl3(log_std)
 
         # log_std = torch.clamp(self.log_std.expand_as(a), -20.,2.)
-        log_std = torch.clamp(log_std, -10.,2.)
+        log_std = torch.clamp(log_std, -4.,2.)
 
         return a, log_std

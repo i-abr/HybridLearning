@@ -47,14 +47,17 @@ def main():
       'reward' : [],
       'done' : []
   }
-  while 1:
+  episode_rewards = []
+  for episodes in range(20):
     frame = 0
     score = 0
     restart_delay = 0
     obs = env.reset()
-
-    while 1:
-      time.sleep(1. / 60.)
+    mean = 0.
+    std = 0.
+    # while 1:
+    for t in range(400):
+      # time.sleep(1. / 60.)
       a = pi.act(obs)
       next_obs, r, done, _ = env.step(a)
 
@@ -81,10 +84,11 @@ def main():
       else:
         restart_delay -= 1
         if restart_delay == 0: break
-
-    print('saving demos')
-    pickle.dump(demonstrations, open('./ant_demos.pkl', 'wb'))
-
+    print("score=%0.2f in %i frames" % (score, frame))
+    episode_rewards.append(score)
+    # print('saving demos')
+    # pickle.dump(demonstrations, open('./ant_demos.pkl', 'wb'))
+  print('final average', np.mean(episode_rewards), np.std(episode_rewards))
 # yapf: disable
 weights_dense1_w = np.array(
     [[

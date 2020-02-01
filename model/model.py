@@ -18,8 +18,8 @@ class Model(nn.Module):
         self.num_actions = num_actions
 
         self.linear1 = nn.Linear(num_states + num_actions, hidden_dim)
-        self.linear2 = nn.Linear(hidden_dim, hidden_dim)
-        self.mean_linear = nn.Linear(hidden_dim, num_states)
+        self.linear2 = nn.Linear(hidden_dim, int(hidden_dim/2))
+        self.mean_linear = nn.Linear(int(hidden_dim/2), num_states)
 
         self.mean_linear.weight.data.uniform_(-init_w, init_w)
         self.mean_linear.bias.data.uniform_(-init_w, init_w)
@@ -28,9 +28,9 @@ class Model(nn.Module):
         self.reward_fun = nn.Sequential(
             nn.Linear(num_states+num_actions, hidden_dim),
             nn.ReLU(),
-            nn.Linear(hidden_dim, hidden_dim),
+            nn.Linear(hidden_dim, int(hidden_dim/2)),
             nn.ReLU(),
-            nn.Linear(hidden_dim, 1)
+            nn.Linear(int(hidden_dim/2), 1)
         )
 
 
