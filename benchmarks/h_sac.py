@@ -9,6 +9,8 @@ from datetime import datetime
 
 import sys
 import os
+import signal
+import traceback
 sys.path.append('../')
 
 import argparse
@@ -73,7 +75,7 @@ if __name__ == '__main__':
             os.makedirs(path)
 
         action_dim = 2
-        state_dim  = 4
+        state_dim  = 2 #4
         hidden_dim = 128
 
         policy_net = PolicyNetwork(state_dim, action_dim, hidden_dim)
@@ -106,7 +108,7 @@ if __name__ == '__main__':
 
         ep_num = 0
 
-        rate=rospy.Rate(20)
+        rate=rospy.Rate(5)
 
         while frame_idx < max_frames:
             state = env.reset()
@@ -177,5 +179,10 @@ if __name__ == '__main__':
         pickle.dump(rewards, open(path + 'reward_data'+ '.pkl', 'wb'))
         torch.save(policy_net.state_dict(), path + 'policy_' + 'final' + '.pt')
 
-    except KeyboardInterrupt, rospy.ROSInterruptException:
-        os._exit(0)
+    # except KeyboardInterrupt as e:
+        # os._exit(0)
+    except Exception as e:
+        print(e)
+        traceback.print_exc()
+    finally:
+        os.kill(os.getpid(),signal.SIGKILL)

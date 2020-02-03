@@ -78,7 +78,7 @@ class go_to_pose(object):
 
         # set up controller
         self.c = 0.5
-        self.alpha = 0.6 # [0,1]
+        self.alpha = 0.8 # [0,1]
         self.reset_theta = dict()
         for name in self.joint_names:
             self.reset_theta[name] = 0.0
@@ -91,7 +91,11 @@ class go_to_pose(object):
         self.euler = transformations.euler_from_quaternion(quaternion)
         self.reset_arm = False
 
-        home_pose = [-0.2, -0.6, 0.0, 1.9, 0.0, 0.3, 1.571];
+        # home_pose = [-0.2, -0.6, 0.0, 1.9, 0.0, 0.3, 1.571]; # straight
+        # home_pose = [-0.24649609375, -0.5411318359375, -0.3039619140625, 1.901158203125, 0.8013974609375, 0.36883203125, -0.1368642578125] # diagonal
+        # home_pose = [-0.271728515625, -0.5496796875, -0.2440283203125, 1.94983984375, 0.7148427734375, 0.308125, -0.38069921875] # diagonal
+        home_pose = [ 0.053275390625, -0.3608935546875, -0.439890625, 1.6846865234375, 1.010955078125, 0.504203125, -0.299798828125] # middle
+
         self.home_joints = dict(zip(self.joint_names, home_pose))
 
         # wait for first response to joint subscriber
@@ -227,7 +231,7 @@ class go_to_pose(object):
         delta_theta_raw = dict()
         joint_velocities = dict()
 
-        rate=rospy.Rate(20)
+        rate=rospy.Rate(5)
         while not rospy.is_shutdown():
             if self.reset_arm == True:
                 # move up
@@ -266,7 +270,7 @@ class go_to_pose(object):
     def clip_velocities(self,action):
         max_x = 0.75
         min_x = 0.5 # 0.45
-        max_y = 0.2 #0.3
+        max_y = 0.25 #0.3
         min_y = -0.2 #-0.25
 
         if (self.tip_state(self.tip_name).pose.position.x > max_x):

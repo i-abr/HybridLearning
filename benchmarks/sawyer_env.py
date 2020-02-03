@@ -17,6 +17,7 @@ from std_srvs.srv import Trigger, TriggerResponse
 
 # sawyer
 from sawyer.msg import RelativeMove
+from intera_core_msgs.msg import EndpointState,EndpointStates
 
 class sawyer_env(object):
     def __init__(self):
@@ -30,8 +31,35 @@ class sawyer_env(object):
         # set up flags
         self.reset_test = False
 
+        # set up sawyer
+        self.tip_name = "right_hand"
+        self._tip_states = None
+        _tip_states_sub = rospy.Subscriber('/robot/limb/right/tip_states',EndpointStates,self._on_tip_states,queue_size=1,tcp_nodelay=True)
+
         # set up tf
-        self.state = self.setup_transforms()
+        # self.state = self.setup_transforms()
+        self.got_pose = False
+        while (self.got_pose == False):
+            # print('waiting')
+            time.sleep(0.2)
+
+        self.state = np.zeros(2)
+        self.manual_transform()
+
+    def _on_tip_states(self, msg):
+        self.got_pose = True
+        self._tip_states = deepcopy(msg)
+
+    def tip_state(self, tip_name):
+        try:
+            return deepcopy(self._tip_states.states[self._tip_states.names.index(tip_name)])
+        except ValueError:
+            return None
+
+    def manual_transform(self):
+        target = np.array([0.797359776117, 0.179709323582]) # [x,y]
+        ee = np.array([self.tip_state(self.tip_name).pose.position.x, self.tip_state(self.tip_name).pose.position.y])
+        self.state = ee-target
 
     def setup_transforms(self):
         target_transform = self.setup_transform_between_frames( 'target','top')
@@ -60,30 +88,36 @@ class sawyer_env(object):
         lookups = ['top', 'block1','block2','block3','block4']
         try:
             ee_transform, _ = self.listener.lookupTransform( 'target','ee', rospy.Time(0))
-            found_tf = True
+            target_transform, _ = self.listener.lookupTransform( 'target',lookups[0], rospy.Time(0))
+            self.state = np.array([ee_transform[0],ee_transform[1],target_transform[0],target_transform[1]])
+            # self.state = (1-0.8)*copy(self.state) + 0.8*np.array([ee_transform[0],ee_transform[1],target_transform[0],target_transform[1]])
+
+            # found_tf = True
         except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
-            found_tf = False
+            print('no transform')
+            # found_tf = False
             pass
-        if (found_tf == True):
-            for lookup in lookups:
-                try:
-                    target_transform, _ = self.listener.lookupTransform( 'target',lookup, rospy.Time(0))
-                    self.state = (1-0.8)*copy(self.state) + 0.8*np.array([ee_transform[0],ee_transform[1],target_transform[0],target_transform[1]])
-                    print(lookup)
-                    break
-                except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
-                    pass
+        # if (found_tf == True):
+        #     for lookup in lookups:
+        #         try:
+        #             target_transform, _ = self.listener.lookupTransform( 'target',lookup, rospy.Time(0))
+        #             self.state = (1-0.8)*copy(self.state) + 0.8*np.array([ee_transform[0],ee_transform[1],target_transform[0],target_transform[1]])
+        #             print(lookup)
+        #             break
+        #         except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
+                    # pass
 
     def reset(self):
         self.reset_test = False
         resp = self.reset_arm()
-        self.state = self.setup_transforms()
+        # self.state = self.setup_transforms()
+        self.manual_transform()
         return self.state.copy()
 
     def step(self, _a):
         if (self.reset_test == False):
             # theta = (np.pi/4)*np.clip(_a[2],-1,1)  # keep april tags in view
-            action = 0.3*np.clip(_a, -1,1)
+            action = 0.4*np.clip(_a, -1,1)
             # publish action input
             pose = RelativeMove()
             pose.dx = action[0]
@@ -92,7 +126,8 @@ class sawyer_env(object):
             self.move.publish(pose)
 
             # get new state
-            self.get_transforms()
+            # self.get_transforms()
+            self.manual_transform()
             reward, done = self.reward_function()
         else:
             done = True
@@ -100,35 +135,42 @@ class sawyer_env(object):
         return self.state.copy(), reward, done
 
     def reward_function(self):
-        [dx_targetToArm, dy_targetToArm, dx_targetToBlock, dy_targetToBlock] = self.state.copy()
+        # [dx_targetToArm, dy_targetToArm, dx_targetToBlock, dy_targetToBlock] = self.state.copy()
+        [dx, dy] = self.state.copy()
 
-        arm_to_block = np.sqrt((dx_targetToArm-dx_targetToBlock)**2+
-                        (dy_targetToArm-dy_targetToBlock)**2)
-
-        block_to_target = np.sqrt(dx_targetToBlock**2+dy_targetToBlock**2)
+        arm_to_target = np.sqrt(dx**2+dy**2)
+        # arm_to_block = np.sqrt((dx_targetToArm-dx_targetToBlock)**2+
+        #                 (dy_targetToArm-dy_targetToBlock)**2)
+        #
+        # block_to_target = np.sqrt(dx_targetToBlock**2+dy_targetToBlock**2)
 
         reward = 0
         done = False
         thresh = 0.08
+        reward += -arm_to_target
         # if (arm_to_block > thresh):
-        reward += -arm_to_block
+        # reward += -arm_to_block
+        # if (arm_to_block < thresh*2):
+            # reward += 1
         # if (arm_to_block < thresh):
-        if (arm_to_block < thresh*2):
-            reward += 1
+            # reward += 1
             # reward += -block_to_target
+        # reward += -block_to_target*1.25
         # if (self.wall == True):
         #     reward += -1
 
-        if (arm_to_block < thresh):
-            # if (block_to_target < thresh):
+        if (arm_to_target < thresh):
+        # if (arm_to_block < thresh):
+        # if (block_to_target < thresh):
             done = True
             reward += 10
             print('Reached goal!')
 
         # rospy.loginfo("arm_to_block: %f, block_to_target: %f, reward: %f", arm_to_block, block_to_target, reward)
         rospy.loginfo("action reward: %f", reward)
-        rospy.loginfo("block dist: %f", arm_to_block)
-        rospy.loginfo("target dist: %f", block_to_target)
+        # rospy.loginfo("block dist: %f", arm_to_block)
+        # rospy.loginfo("target dist: %f", block_to_target)
+        rospy.loginfo("target dist: %f", arm_to_target)
 
         return reward, done
 
