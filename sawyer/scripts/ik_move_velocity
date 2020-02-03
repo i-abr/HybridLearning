@@ -30,10 +30,11 @@ from tf_conversions import transformations # , posemath # for relative pose move
 
 # sawyer
 from intera_core_msgs.srv import SolvePositionIK, SolvePositionIKRequest
-from intera_core_msgs.msg import JointCommand, EndpointState,EndpointStates
+from intera_core_msgs.msg import JointCommand, EndpointState,EndpointStates, CollisionDetectionState
 from sawyer.msg import RelativeMove
 # from intera_interface import Limb
-from intera_interface import RobotParams
+from intera_interface import RobotParams, settings
+import intera_dataflow
 
 # pykdl
 from sawyer_pykdl import sawyer_kinematics
@@ -47,7 +48,10 @@ class go_to_pose(object):
         self.iksvc = rospy.ServiceProxy(ns, SolvePositionIK)
         rospy.wait_for_service(ns, 5.0)
 
-        # set up sawyer
+        # set up py_kdl
+        self.py_kdl = sawyer_kinematics(limb)
+
+        # set up sawyer (ijn place of limb class)
         ns_cmd = '/robot/limb/' + limb + '/'
         params = RobotParams()
         self.joint_names = params.get_joint_names(limb)
@@ -56,46 +60,50 @@ class go_to_pose(object):
         self._joint_effort = dict()
         self._joint_names = self.joint_names
         self._tip_states = None
+        self._collision_state = False
 
-        # setup ros
-        rospy.Service('/puck/reset', Trigger, self.reset)
-        rospy.Subscriber('/puck/relative_move',RelativeMove,self.pose_callback)
-        self.reset_sawyer_env = rospy.ServiceProxy('/puck/done', Trigger)
         self._pub_speed_ratio = rospy.Publisher(ns_cmd + 'set_speed_ratio', Float64, latch=True, queue_size=1)
         self._command_msg = JointCommand()
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             self._pub_joint_cmd = rospy.Publisher(ns_cmd + 'joint_command',JointCommand,tcp_nodelay=True,queue_size=1)
         self._pub_joint_cmd_timeout = rospy.Publisher(ns_cmd + 'joint_command_timeout',Float64,latch=True,queue_size=1)
-        _joint_state_sub = rospy.Subscriber('robot/joint_states',JointState,self._on_joint_states,queue_size=1) #,tcp_nodelay=True)
-        _tip_states_sub = rospy.Subscriber(ns_cmd + 'tip_states',EndpointStates,self._on_tip_states,queue_size=1) #,tcp_nodelay=True)
+        _joint_state_sub = rospy.Subscriber('robot/joint_states',JointState,self._on_joint_states,queue_size=1,tcp_nodelay=True)
+        _tip_states_sub = rospy.Subscriber(ns_cmd + 'tip_states',EndpointStates,self._on_tip_states,queue_size=1,tcp_nodelay=True)
+        _collision_state_sub = rospy.Subscriber(ns_cmd + 'collision_detection_state',CollisionDetectionState,self._on_collision_state,queue_size=1,tcp_nodelay=True)
+
+        # setup custom ros
+        rospy.Service('/puck/reset', Trigger, self.reset)
+        self.reset_sawyer_env = rospy.ServiceProxy('/puck/done', Trigger)
 
         # set up controller
         self.c = 0.5
-        self.alpha = 0.7 # [0,1]
+        self.alpha = 0.6 # [0,1]
         self.reset_theta = dict()
         for name in self.joint_names:
             self.reset_theta[name] = 0.0
-        self.delta_theta = copy(self.reset_theta)
+        self.delta_theta = deepcopy(self.reset_theta)
 
-        # initalize with current joint angles
+        # initalize home configuration
         home_orientation = Quaternion(0, 1, 0, 0)
         quaternion = (home_orientation.x, home_orientation.y,
                       home_orientation.z, home_orientation.w)
         self.euler = transformations.euler_from_quaternion(quaternion)
         self.reset_arm = False
 
-        # define home configuration
         home_pose = [-0.2, -0.6, 0.0, 1.9, 0.0, 0.3, 1.571];
         self.home_joints = dict(zip(self.joint_names, home_pose))
-        self._pub_speed_ratio.publish(Float64(0.6))
-        self.set_joint_positions(copy(self.home_joints))
 
+        # wait for first response to joint subscriber
         self.got_joints = False
         while (self.got_joints == False):
             # print('waiting')
             time.sleep(0.2)
-        self.desired_theta = self.joint_angles()
+        self.desired_theta_dot = deepcopy(self.reset_theta)
+
+        self.raw_command = RelativeMove()
+        self.filtered_command = RelativeMove()
+        rospy.Subscriber('/puck/relative_move',RelativeMove,self.raw_command_callback)
         self.update_velocities()
 
     '''
@@ -121,12 +129,49 @@ class go_to_pose(object):
         except ValueError:
             return None
 
+    def _on_collision_state(self, msg):
+        if self._collision_state != msg.collision_state:
+            self._collision_state = msg.collision_state
+
+    def has_collided(self):
+        return self._collision_state
+
     def set_joint_positions(self, positions):
         self._command_msg.names = positions.keys()
         self._command_msg.position = positions.values()
         self._command_msg.mode = JointCommand.POSITION_MODE
         self._command_msg.header.stamp = rospy.Time.now()
         self._pub_joint_cmd.publish(self._command_msg)
+
+    def move_to_joint_positions(self, positions, timeout=15.0,
+                                threshold=settings.JOINT_ANGLE_TOLERANCE,
+                                test=None):
+        cmd = self.joint_angles()
+
+        def genf(joint, angle):
+            def joint_diff():
+                return abs(angle - self._joint_angle[joint])
+            return joint_diff
+
+        diffs = [genf(j, a) for j, a in positions.items() if
+                 j in self._joint_angle]
+        fail_msg = "limb failed to reach commanded joint positions."
+        def test_collision():
+            if self.has_collided():
+                rospy.logerr(' '.join(["Collision detected.", fail_msg]))
+                return True
+            return False
+        self.set_joint_positions(positions)
+        intera_dataflow.wait_for(
+            test=lambda: test_collision() or \
+                         (callable(test) and test() == True) or \
+                         (all(diff() < threshold for diff in diffs)),
+            timeout=timeout,
+            timeout_msg=fail_msg,
+            rate=100,
+            raise_on_error=False,
+            body=lambda: self.set_joint_positions(positions)
+            )
 
     def set_joint_velocities(self, velocities):
         self._command_msg.names = velocities.keys()
@@ -146,147 +191,94 @@ class go_to_pose(object):
     custom
     '''
 
-    def normalize_angle(self, angle):
-        if (angle > np.pi/2):
-            angle -= np.pi
-        elif (angle < -np.pi/2):
-            angle += np.pi
-        angle_new = np.clip(angle,-np.pi/4,np.pi/4)  # keep april tags in view
-        return angle_new
+    # def normalize_angle(self, angle):
+    #     if (angle > np.pi/2):
+    #         angle -= np.pi
+    #     elif (angle < -np.pi/2):
+    #         angle += np.pi
+    #     angle_new = np.clip(angle,-np.pi/4,np.pi/4)  # keep april tags in view
+    #     return angle_new
 
-    def pose_callback(self,data):
-        # print(data)
-        # solve inverse kinematics
-        ikreq = SolvePositionIKRequest()
+    def raw_command_callback(self,_data):
+        self.raw_command = _data
 
-        current_pose = self.tip_state(self.tip_name).pose # get current state
-        rospy.loginfo("Current Pose:\n%s", current_pose)
+    def ee_vel_to_joint_vel(self,_data):
+        # current_pose = self.joint_angles() # get current state
+        # print(current_pose.values())
+        # calculate jacobian_pseudo_inverse
+        data = self.clip_velocities(_data)
 
-        # relative move
-        theta = np.arctan2(copy(data.dy), copy(data.dx))
-        theta = self.normalize_angle(copy(theta)) # limit angles to +/- pi/2 for april tag visibility
+        jacobian_ps = self.py_kdl.jacobian_pseudo_inverse(joint_values=None)
+        # print(jacobian_ps)
 
-        orientation = Quaternion(*transformations.quaternion_from_euler(self.euler[0], self.euler[1], self.euler[2]+theta))
-        # orientation = Quaternion(*transformations.quaternion_from_euler(self.euler[0], self.euler[1], self.euler[2]+data.dtheta))
+        xdot = np.zeros(6)
+        xdot[0] = data.dx
+        xdot[1] = data.dy
 
-        pose = current_pose
-        pose.orientation =  orientation
-        pose.position.x += data.dx
-        pose.position.y += data.dy
-        dz = np.clip(pose.position.z, 0.035,0.05)  # correct for drift
-        pose.position.z = dz
-        # rospy.loginfo("Updated Pose:\n%s", pose)
+        desired_theta_dot = np.matmul(jacobian_ps,xdot)
 
-        # create stamped pose with updated pose
-        poseStamped = PoseStamped()
-        poseStamped.header = Header(stamp=rospy.Time.now(), frame_id='base')
-        poseStamped.pose = pose
+        for i in range(len(self.joint_names)):
+            self.desired_theta_dot[self.joint_names[i]] = desired_theta_dot[0,i]
 
-        # Add desired pose for inverse kinematics
-        ikreq.pose_stamp.append(poseStamped)
-        ikreq.tip_names.append('right_hand') # for each pose in IK
+        # print(self.desired_theta_dot)
 
-        try:
-            resp = self.iksvc(ikreq)
-            # Check if result valid, and type of seed ultimately used to get solution
-            if (resp.result_type[0] > 0):
-                limb_joints = dict(zip(resp.joints[0].name, resp.joints[0].position))
-                # rospy.loginfo("Response Message:\n%s", resp)
-                self.desired_theta = limb_joints
-            else:
-                rospy.logerr("INVALID POSE - No Valid Joint Solution Found.")
-                rospy.logerr("Result Error %d", resp.result_type[0])
-                resp = self.reset_sawyer_env()
-
-        except (rospy.ServiceException, rospy.ROSException), e:
-            rospy.logerr("Service call failed: %s" % (e,))
-
-    def pose_callback(self,data):
-        # solve inverse kinematics
-        ikreq = SolvePositionIKRequest()
-
-        current_pose = self.tip_state(self.tip_name).pose # get current state
-        rospy.loginfo("Current Pose:\n%s", current_pose)
-
-        # relative move
-        theta = np.arctan2(copy(data.dy), copy(data.dx))
-        theta = self.normalize_angle(copy(theta)) # limit angles to +/- pi/2 for april tag visibility
-
-        orientation = Quaternion(*transformations.quaternion_from_euler(self.euler[0], self.euler[1], self.euler[2]+theta))
-        # orientation = Quaternion(*transformations.quaternion_from_euler(self.euler[0], self.euler[1], self.euler[2]+data.dtheta))
-
-        pose = current_pose
-        pose.orientation =  orientation
-        pose.position.x += data.dx
-        pose.position.y += data.dy
-        dz = np.clip(pose.position.z, 0.035,0.05)  # correct for drift
-        pose.position.z = dz
-        # rospy.loginfo("Updated Pose:\n%s", pose)
-
-        # create stamped pose with updated pose
-        poseStamped = PoseStamped()
-        poseStamped.header = Header(stamp=rospy.Time.now(), frame_id='base')
-        poseStamped.pose = pose
-
-        # Add desired pose for inverse kinematics
-        ikreq.pose_stamp.append(poseStamped)
-        ikreq.tip_names.append('right_hand') # for each pose in IK
-
-        try:
-            resp = self.iksvc(ikreq)
-            # Check if result valid, and type of seed ultimately used to get solution
-            if (resp.result_type[0] > 0):
-                limb_joints = dict(zip(resp.joints[0].name, resp.joints[0].position))
-                # rospy.loginfo("Response Message:\n%s", resp)
-                self.desired_theta = limb_joints
-            else:
-                rospy.logerr("INVALID POSE - No Valid Joint Solution Found.")
-                rospy.logerr("Result Error %d", resp.result_type[0])
-                resp = self.reset_sawyer_env()
-
-        except (rospy.ServiceException, rospy.ROSException), e:
-            rospy.logerr("Service call failed: %s" % (e,))
 
     def update_velocities(self):
-        joint_velocities = dict()
         delta_theta_raw = dict()
+        joint_velocities = dict()
 
         rate=rospy.Rate(20)
         while not rospy.is_shutdown():
-            if self.reset_arm == False:
-                current_theta = self.joint_angles()
+            if self.reset_arm == True:
+                # move up
+                vertical_joints = self.move_up()
+                self._pub_speed_ratio.publish(Float64(0.1))
+                self.move_to_joint_positions(vertical_joints)
+                time.sleep(2)
 
-                for name in self.joint_names:
-                    delta_theta_raw[name] = copy(self.desired_theta[name]) - current_theta[name]
-                    self.delta_theta[name] = copy(self.alpha)*copy(self.delta_theta[name]) + (1-copy(self.alpha))*delta_theta_raw[name]
-                    joint_velocities[name] = copy(self.c)*self.delta_theta[name]
+                # move to home
+                self._pub_speed_ratio.publish(Float64(0.2))
+                self.move_to_joint_positions(copy(self.home_joints))
+                time.sleep(2)
 
-                # rospy.loginfo("New Velocities: %s", joint_velocities)
-                # rospy.loginfo("------------")
-                self.set_joint_velocities(joint_velocities)
+                # reset parameters
+                # self.delta_theta = deepcopy(self.reset_theta)
+                self.desired_theta_dot = deepcopy(self.reset_theta)  # copy(self.home_joints)
+                rospy.loginfo("Reset Pose")
+
+                self.reset_arm = False
+                self.raw_command = RelativeMove()
+                self.filtered_command = RelativeMove()
+
+            self.filtered_command.dx = self.alpha*self.filtered_command.dx+(1-self.alpha)*self.raw_command.dx
+            self.filtered_command.dy = self.alpha*self.filtered_command.dy+(1-self.alpha)*self.raw_command.dy
+            self.ee_vel_to_joint_vel(self.filtered_command)
+            self.set_joint_velocities(self.desired_theta_dot)
             rate.sleep()
 
     def reset(self,req):
         self.reset_arm = True
-        # move up
-        vertical_joints = self.move_up()
-        self._pub_speed_ratio.publish(Float64(0.1))
-        self.set_joint_positions(vertical_joints)
-        time.sleep(2)
-
-        # move to home
-        self._pub_speed_ratio.publish(Float64(0.2))
-        self.set_joint_positions(copy(self.home_joints))
-        time.sleep(2)
-
-        # reset parameters
-        self.delta_theta = copy(self.reset_theta)
-        self.desired_theta = copy(self.home_joints)
-        rospy.loginfo("Reset Pose")
-
-        self.reset_arm = False
+        while (self.reset_arm == True):
+            time.sleep(0.1)
         return TriggerResponse(success=True,
                                message="Done callback complete")
+
+    def clip_velocities(self,action):
+        max_x = 0.75
+        min_x = 0.5 # 0.45
+        max_y = 0.2 #0.3
+        min_y = -0.2 #-0.25
+
+        if (self.tip_state(self.tip_name).pose.position.x > max_x):
+            action.dx = np.clip(action.dx, -1,0)
+        elif (self.tip_state(self.tip_name).pose.position.x < min_x):
+            action.dx = np.clip(action.dx, 0,1)
+        if (self.tip_state(self.tip_name).pose.position.y > max_y):
+            action.dy = np.clip(action.dy, -1,0)
+        elif(self.tip_state(self.tip_name).pose.position.y < min_y):
+            action.dy = np.clip(action.dy, 0,1)
+
+        return action
 
     def move_up(self):
         # solve inverse kinematics
