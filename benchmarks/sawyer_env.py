@@ -44,7 +44,7 @@ class sawyer_env(object):
             time.sleep(0.2)
 
         self.state = np.zeros(2)
-        self.manual_transform()
+        self.hybrid_transform()
 
     def _on_tip_states(self, msg):
         self.got_pose = True
@@ -60,6 +60,22 @@ class sawyer_env(object):
         target = np.array([0.797359776117, 0.179709323582]) # [x,y]
         ee = np.array([self.tip_state(self.tip_name).pose.position.x, self.tip_state(self.tip_name).pose.position.y])
         self.state = ee-target
+
+    def hybrid_transform(self):
+        # check tf transform by comparing to hard coded
+        target = np.array([0.797359776117, 0.179709323582]) # [x,y]
+        ee = np.array([self.tip_state(self.tip_name).pose.position.x, self.tip_state(self.tip_name).pose.position.y])
+        ee_transform_hc = ee-target
+        print(ee_transform_hc)
+
+        ee_transform = self.setup_transform_between_frames( 'target','ee')
+        print(ee_transform)
+        try:
+            self.state = np.array([-ee_transform[0],-ee_transform[1]])
+            # self.state = np.array([ee_transform[0],ee_transform[1],block_transform[0],block_transform[1]])
+        except:
+            print("Check that all april tags are visible")
+
 
     def setup_transforms(self):
         target_transform = self.setup_transform_between_frames( 'target','top')
@@ -111,7 +127,7 @@ class sawyer_env(object):
         self.reset_test = False
         resp = self.reset_arm()
         # self.state = self.setup_transforms()
-        self.manual_transform()
+        self.hybrid_transform()
         return self.state.copy()
 
     def step(self, _a):
@@ -127,7 +143,7 @@ class sawyer_env(object):
 
             # get new state
             # self.get_transforms()
-            self.manual_transform()
+            self.hybrid_transform()
             reward, done = self.reward_function()
         else:
             done = True
@@ -136,41 +152,49 @@ class sawyer_env(object):
 
     def reward_function(self):
         # [dx_targetToArm, dy_targetToArm, dx_targetToBlock, dy_targetToBlock] = self.state.copy()
-        [dx, dy] = self.state.copy()
+        # [dx_targetToArm, dy_targetToArm, dx_block_to_Arm, dy_block_to_Arm] = self.state.copy()
+        [dx_block_to_Arm, dy_block_to_Arm] = self.state.copy()
 
-        arm_to_target = np.sqrt(dx**2+dy**2)
         # arm_to_block = np.sqrt((dx_targetToArm-dx_targetToBlock)**2+
         #                 (dy_targetToArm-dy_targetToBlock)**2)
-        #
+        # targetToArm = np.sqrt((dx_targetToArm)**2+
+        #                 (dy_targetToArm)**2)
+
         # block_to_target = np.sqrt(dx_targetToBlock**2+dy_targetToBlock**2)
+        block_to_Arm = np.sqrt(dx_block_to_Arm**2+dy_block_to_Arm**2)
 
         reward = 0
         done = False
         thresh = 0.08
-        reward += -arm_to_target
+        # reward += -arm_to_target
         # if (arm_to_block > thresh):
-        # reward += -arm_to_block
+        # reward += -targetToArm*1.25
         # if (arm_to_block < thresh*2):
             # reward += 1
         # if (arm_to_block < thresh):
             # reward += 1
             # reward += -block_to_target
         # reward += -block_to_target*1.25
+        reward += -block_to_Arm
         # if (self.wall == True):
         #     reward += -1
 
-        if (arm_to_target < thresh):
+        # if (arm_to_target < thresh):
         # if (arm_to_block < thresh):
         # if (block_to_target < thresh):
+        if (block_to_Arm < thresh):
+            # if (targetToArm < thresh):
             done = True
             reward += 10
             print('Reached goal!')
 
         # rospy.loginfo("arm_to_block: %f, block_to_target: %f, reward: %f", arm_to_block, block_to_target, reward)
         rospy.loginfo("action reward: %f", reward)
+        rospy.loginfo("block dist: %f", block_to_Arm)
+        # rospy.loginfo("block dist: %f", targetToArm)
         # rospy.loginfo("block dist: %f", arm_to_block)
         # rospy.loginfo("target dist: %f", block_to_target)
-        rospy.loginfo("target dist: %f", arm_to_target)
+        # rospy.loginfo("target dist: %f", arm_to_target)
 
         return reward, done
 

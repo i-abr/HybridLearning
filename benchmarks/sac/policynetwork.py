@@ -6,7 +6,7 @@ import torch.nn.functional as F
 from torch.distributions import Normal
 
 class PolicyNetwork(nn.Module):
-    def __init__(self, num_inputs, num_actions, hidden_size, init_w=3e-3, log_std_min=-20, log_std_max=2):
+    def __init__(self, num_inputs, num_actions, hidden_size, init_w=3e-3, log_std_min=-4, log_std_max=2):
         super(PolicyNetwork, self).__init__()
 
         self.log_std_min = log_std_min
@@ -21,8 +21,8 @@ class PolicyNetwork(nn.Module):
         self.mean_linear.bias.data.uniform_(-init_w, init_w)
 
         self.log_std_linear = nn.Linear(hidden_size, num_actions)
-        self.log_std_linear.weight.data.uniform_(-init_w*0., init_w)
-        self.log_std_linear.bias.data.uniform_(-init_w*0., init_w)
+        self.log_std_linear.weight.data.uniform_(-init_w, init_w)
+        self.log_std_linear.bias.data.uniform_(-init_w, init_w)
         # self.log_std_linear.weight.data.zero_()
         # self.log_std_linear.bias.data.zero_()
 

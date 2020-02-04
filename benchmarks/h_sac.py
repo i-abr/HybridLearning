@@ -29,7 +29,8 @@ from model import ModelOptimizer, Model, SARSAReplayBuffer
 
 # ros
 import rospy
-from sawyer_env import sawyer_env
+# from sawyer_env import sawyer_env # reacher
+from sawyer_env_ShapeSorter import sawyer_env # shape sorter
 
 """
 arg parse things
@@ -39,7 +40,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--max_steps',  type=int,   default=500)
 parser.add_argument('--max_frames', type=int,   default=10000)
 # parser.add_argument('--frame_skip', type=int,   default=2)
-parser.add_argument('--model_lr',   type=float, default=0.01)
+parser.add_argument('--model_lr',   type=float, default=3e-3)#0.01)
 parser.add_argument('--policy_lr',  type=float, default=3e-3)
 parser.add_argument('--value_lr',   type=float, default=3e-4)
 parser.add_argument('--soft_q_lr',  type=float, default=3e-4)
@@ -47,7 +48,7 @@ parser.add_argument('--soft_q_lr',  type=float, default=3e-4)
 parser.add_argument('--horizon', type=int, default=5)
 parser.add_argument('--model_iter', type=int, default=1)
 parser.add_argument('--trajectory_samples', type=int, default=20)
-parser.add_argument('--lam',  type=float, default=1)
+parser.add_argument('--lam',  type=float, default=0.1)
 
 
 # parser.add_argument('--done_util', dest='done_util', action='store_true')
@@ -74,8 +75,8 @@ if __name__ == '__main__':
         if os.path.exists(path) is False:
             os.makedirs(path)
 
-        action_dim = 2
-        state_dim  = 2 #4
+        action_dim = 3
+        state_dim  = 9 #4
         hidden_dim = 128
 
         policy_net = PolicyNetwork(state_dim, action_dim, hidden_dim)
@@ -108,7 +109,7 @@ if __name__ == '__main__':
 
         ep_num = 0
 
-        rate=rospy.Rate(5)
+        rate=rospy.Rate(10)
 
         while frame_idx < max_frames:
             state = env.reset()
