@@ -306,7 +306,7 @@ class go_to_pose(object):
         max_y = 0.06 #0.3
         min_y = -0.04 #-0.25
         max_z = 0.18
-        min_z = 0.144
+        min_z = 0.145
 
         if (self.tip_state(self.tip_name).pose.position.x > max_x):
             action.dx = np.clip(action.dx, -1,0)

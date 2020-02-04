@@ -72,6 +72,7 @@ if __name__ == '__main__':
         date_str = now.strftime("%Y-%m-%d_%H-%M-%S/")
 
         path = './data/' + env_name +  '/' + 'h_sac/' + date_str
+        # path = './data/' + env_name +  '/' + 'sac/' + date_str # policy only
         if os.path.exists(path) is False:
             os.makedirs(path)
 
@@ -116,6 +117,7 @@ if __name__ == '__main__':
             planner.reset()
 
             action = planner(state.copy())
+            # action = policy_net.get_action(state.copy()) # policy only
 
             episode_reward = 0
             for step in range(max_steps):
@@ -128,7 +130,9 @@ if __name__ == '__main__':
 
                 start_time = time.time()
                 # print('state',next_state)
-                next_action = planner(next_state)
+                next_action = planner(next_state.copy())
+                # next_action = policy_net.get_action(next_state.copy()) # policy only
+
                 # print('elapsed time',time.time()-start_time)
                 print(step)
 

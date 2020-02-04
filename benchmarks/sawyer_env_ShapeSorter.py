@@ -17,6 +17,7 @@ from std_srvs.srv import Trigger, TriggerResponse
 # sawyer
 from sawyer.msg import RelativeMove
 from intera_core_msgs.msg import EndpointState,EndpointStates
+from intera_interface import Gripper
 
 class sawyer_env(object):
     def __init__(self):
@@ -33,6 +34,8 @@ class sawyer_env(object):
         self.tip_name = "right_hand"
         self._tip_states = None
         _tip_states_sub = rospy.Subscriber('/robot/limb/right/tip_states',EndpointStates,self._on_tip_states,queue_size=1,tcp_nodelay=True)
+        limb = "right"
+        self.gripper = Gripper(limb + '_gripper')
 
         # set up tf
         self.got_pose = False
@@ -56,8 +59,8 @@ class sawyer_env(object):
     def update_state(self):
         target = np.zeros(9)
         # target[0:3] = np.array([0.636175521396, -0.0225218216069, 0.14]) # (distance) [x,y,z], trapezoid
-        target[0:3] = np.array([0.609695327691, 0.0368738993857, 0.1436]) # diamond
-
+        # target[0:3] = np.array([0.608951905342, 0.0370819526536, 0.1436]) # diamond
+        target[0:3] = np.array([0.613297719487, 0.0337612632052, 0.14])
         ee = np.array([self.tip_state(self.tip_name).pose.position.x, self.tip_state(self.tip_name).pose.position.y,self.tip_state(self.tip_name).pose.position.z,
                        self.tip_state(self.tip_name).wrench.force.x,self.tip_state(self.tip_name).wrench.force.y,self.tip_state(self.tip_name).wrench.force.z,
                        self.tip_state(self.tip_name).wrench.torque.x,self.tip_state(self.tip_name).wrench.torque.y,self.tip_state(self.tip_name).wrench.torque.z])
@@ -66,6 +69,12 @@ class sawyer_env(object):
     def reset(self):
         self.reset_test = False
         resp = self.reset_arm()
+        o = raw_input("Enter '0' to open gripper, otherwise press enter to continue ")
+        if (o == '0'):
+            self.gripper.open()
+            raw_input("Press enter to close gripper")
+            self.gripper.close("Press enter to continue")
+            raw_input()
         self.update_state()
         return self.state.copy()
 
@@ -86,7 +95,7 @@ class sawyer_env(object):
             reward, done = self.reward_function()
         else:
             done = True
-            reward = 10
+            reward, _ = self.reward_function()
         return self.state.copy(), reward, done
 
     def reward_function(self):
