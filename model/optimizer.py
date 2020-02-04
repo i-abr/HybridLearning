@@ -94,15 +94,16 @@ class MDNModelOptimizer(object):
         self.model_optimizer  = optim.Adam(self.model.parameters(), lr=lr)
 
         # logger
-        self.log = {'loss' : [], 'rew_loss': []}
+        self.log = {'loss' : [], 'rew_loss': [], 'model_loss' : []}
 
-    def update_model(self, batch_size, mini_iter=1):
-
+    def update_model(self, batch_size, mini_iter=1, verbose=False):
+        if batch_size > len(self.replay_buffer):
+            batch_size = len(self.replay_buffer)
         for k in range(mini_iter):
-            states, actions, rewards, next_states, done = self.replay_buffer.sample(batch_size)
+            states, actions, rewards, next_states, _, done = self.replay_buffer.sample(batch_size)
 
             states = torch.FloatTensor(states)
-            states.requires_grad = True
+            # states.requires_grad = True
 
             next_states = torch.FloatTensor(next_states)
             actions = torch.FloatTensor(actions)
@@ -111,14 +112,15 @@ class MDNModelOptimizer(object):
 
             log_probs, pred_rewards = self.model(states, actions, next_states)
 
-            df = jacobian(log_probs, states)
+            # df = jacobian(log_probs, states)
 
 
-            next_value = self.model.predict_reward(next_states)
+            # next_value = self.model.predict_reward(next_states)
 
             #rew_loss = torch.mean(torch.pow(pred_rewards - rewards,2))
-            rew_loss = torch.mean(torch.pow((rewards+(1-done)*0.99*next_value).detach()-pred_rewards,2))
-            model_loss = -torch.mean(log_probs) + 1e-2 * torch.norm(df, dim=[1,2]).mean()
+            # rew_loss = torch.mean(torch.pow(rewards-pred_rewards,2))
+            rew_loss = F.smooth_l1_loss(pred_rewards, rewards)
+            model_loss = -torch.mean(log_probs)
 
             loss = 0.5 * rew_loss + model_loss
 
@@ -126,5 +128,12 @@ class MDNModelOptimizer(object):
             loss.backward()
             self.model_optimizer.step()
 
-        self.log['loss'].append(loss.item())
-        self.log['rew_loss'].append(rew_loss.item())
+            self.log['loss'].append(loss.item())
+            self.log['model_loss'].append(model_loss.item())
+            self.log['rew_loss'].append(rew_loss.item())
+
+            if verbose:
+                if k % 10 == 0:
+                    print('epoch', k, 'loss {}, model loss {}, rew loss {}'.format(
+                        self.log['loss'][-1], self.log['model_loss'][-1], self.log['rew_loss'][-1]
+                    ))

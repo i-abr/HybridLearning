@@ -8,16 +8,17 @@ class MDNDyn(nn.Module):
                     n_hidden=200, n_gaussians=10):
         super(MDNDyn, self).__init__()
 
-        self.linear1 = nn.Linear(num_inputs, n_hidden)
+        # self.linear1 = nn.Linear(num_inputs, n_hidden)
 
-        # self.z_h = nn.Sequential(
-        #     nn.Linear(num_inputs, n_hidden),
-        #     nn.ReLU()
-        # )
+        self.z_h = nn.Sequential(
+            nn.Linear(num_inputs, n_hidden),
+            nn.ReLU(),
+            nn.Linear(n_hidden, int(n_hidden/2))
+        )
 
-        self.z_pi = nn.Linear(n_hidden, n_gaussians)
-        self.z_sigma = nn.Linear(n_hidden, n_gaussians * num_outputs)
-        self.z_mu = nn.Linear(n_hidden, n_gaussians * num_outputs)
+        self.z_pi = nn.Linear(int(n_hidden/2), n_gaussians)
+        self.z_sigma = nn.Linear(int(n_hidden/2), n_gaussians * num_outputs)
+        self.z_mu = nn.Linear(int(n_hidden/2), n_gaussians * num_outputs)
 
         self.num_outputs = num_outputs
         self.num_gauss   = n_gaussians
@@ -44,10 +45,10 @@ class MDNDyn(nn.Module):
         return torch.logsumexp(log_pdf + log_pi, dim=1, keepdim=True)
 
     def forward(self, x, u):
-        # z_h = self.z_h(torch.cat([x, u], dim=1))
-        z_h = torch.sin(self.linear1(torch.cat([x, u], dim=1)))
+        z_h = self.z_h(torch.cat([x, u], dim=1))
+        # z_h = torch.sin(self.linear1(torch.cat([x, u], dim=1)))
         pi = nn.functional.softmax(self.z_pi(z_h) + 1e-3, -1)
-        sigma = torch.clamp(self.z_sigma(z_h), -20, 4).exp()
+        sigma = torch.clamp(self.z_sigma(z_h), -4, 4).exp()
 
         mu = self.z_mu(z_h).view(-1, self.num_gauss, self.num_outputs)
         mu = mu + x.unsqueeze(1).expand_as(mu)

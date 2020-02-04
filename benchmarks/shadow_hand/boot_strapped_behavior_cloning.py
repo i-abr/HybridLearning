@@ -11,7 +11,7 @@ import envs
 
 import random
 import torch
-from daggerlib import *
+from daggerlib import DAggerOnlineOptim, Policy, ReplayBuffer
 # from sac import SoftActorCritic
 # from sac import PolicyNetwork
 # from sac import ReplayBuffer
@@ -20,7 +20,7 @@ from hybrid_stochastic import PathIntegral
 from model import ModelOptimizer, Model, SARSAReplayBuffer
 from model import MDNModelOptimizer, MDNModel
 
-# from experts.shadow_hand_manipulation import
+from experts.shadow_hand_manipulation import MPPI
 
 # from experts.AntBulletEnv import SmallReactivePolicy
 
@@ -34,7 +34,7 @@ parser.add_argument('--env',        type=str,   help=envs.getlist())
 parser.add_argument('--max_steps',  type=int,   default=200)
 parser.add_argument('--max_frames', type=int,   default=6000)
 parser.add_argument('--frame_skip', type=int,   default=2)
-parser.add_argument('--model_lr',   type=float, default=0.01)
+parser.add_argument('--model_lr',   type=float, default=3e-4)
 parser.add_argument('--policy_lr',  type=float, default=3e-3)
 
 parser.add_argument('--horizon', type=int, default=5)
@@ -96,20 +96,23 @@ if __name__ == '__main__':
     # expert_policy = SmallReactivePolicy(env.observation_space, env.action_space)
     beta = 1.0
 
-    policy = Policy(state_dim, action_dim, layers=[177, 132])
+    expert_policy = MPPI()
 
-    model = Model(state_dim, action_dim, hidden_dim=256)
+    policy = Policy(state_dim, action_dim, layers=[256, 128])
+
+    # model = Model(state_dim, action_dim, hidden_dim=256)
+    model = MDNModel(state_dim, action_dim)
 
     # get expert data
     expert_data = pickle.load(open('../experts/data/shadow_hand/cube_manip/demonstrations.pkl', 'rb'))
     capacity = 100000
 
     buffer = ReplayBuffer(capacity)
-    optimizer = DAggerOnlineOptim(policy, buffer, lr=0.01)
+    optimizer = DAggerOnlineOptim(policy, buffer, lr=3e-4)
 
     model_replay_buffer = SARSAReplayBuffer(capacity)
-    model_optim = ModelOptimizer(model, model_replay_buffer, lr=args.model_lr, lam=0.2)
-
+    # model_optim = ModelOptimizer(model, model_replay_buffer, lr=args.model_lr, lam=0.2)
+    model_optim = MDNModelOptimizer(model, model_replay_buffer, lr=args.model_lr)
 
     planner = PathIntegral(model, policy,
                         samples=args.trajectory_samples, t_H=args.horizon, lam=args.lam)
@@ -148,44 +151,56 @@ if __name__ == '__main__':
     ########## THen try to solve problem with demos ###########
     # env.camera_adjust()
     ep_num = 0
+    beta = 0.8
+
     while frame_idx < max_frames:
 
+        try:
         # demonstrations are given to us
-        for state, action, reward, next_state, next_action, done in expert_data[ep_num]:
+            for state, action, reward, next_state, next_action, done in expert_data[ep_num]:
 
-            model_replay_buffer.push(state, action, reward, next_state, next_action, done)
-            buffer.push(state, action, next_state, action)
+                model_replay_buffer.push(state, action, reward, next_state, next_action, done)
+                buffer.push(state, action, next_state, action)
 
-            if done:
-                break
-
-        optimizer.update_policy(batch_size, epochs=100, verbose=True)
-        model_optim.update_model(batch_size, mini_iter=100, verbose=True)
+                if done:
+                    break
+        except:
+            pass
+        optimizer.update_policy(batch_size, epochs=50, verbose=True)
+        model_optim.update_model(batch_size, mini_iter=50, verbose=True)
 
         state = env.reset()
+
+        expert_policy.model.reset_model(env.target_config)
+        expert_policy.reset()
         planner.reset()
 
         # expert_action = expert_policy.act(state)
-        action = planner(state)
+        # action = planner(state)
+        # action = policy.get_action(state)
         # action = expert_action
         episode_reward = 0
         for step in range(max_steps):
 
+            action = planner(state)
 
             # for _ in range(frame_skip):
-            next_state, reward, done, info = env.step(action.copy())
 
             # next_expert_action = expert_policy.act(next_state)
-            next_action = planner(next_state)
             # next_action = policy.get_action(next_state)
-            # if random.random() < beta:
-            #     next_action = next_expert_action.copy()
-            # else:
-            #     next_expert_action = None
-            model_replay_buffer.push(state, action, reward, next_state, next_action, done)
+            expert_action = None
+            if random.random() < beta:
+                expert_action = expert_policy(env.get_state(), sig=0.3)
+                print(np.abs(expert_action).max(), np.abs(action).max())
+                action = expert_action.copy()
+            else:
+                expert_action = None
 
-            # if expert_action is not None:
-            #     buffer.push(state, action, next_state, expert_action)
+            next_state, reward, done, info = env.step(action.copy())
+            model_replay_buffer.push(state, action, reward, next_state, action, done)
+
+            if expert_action is not None:
+                buffer.push(state, action, next_state, expert_action)
 
             # if len(buffer) > batch_size:
             #     optimizer.update_policy(batch_size)
@@ -196,7 +211,7 @@ if __name__ == '__main__':
             #     #     'policy_loss', optimizer.log['loss'][-1])
 
             state = next_state
-            action = next_action
+            # action = next_action
             # expert_action = next_expert_action
             episode_reward += reward
             frame_idx += 1
@@ -228,6 +243,7 @@ if __name__ == '__main__':
             # print('ssac loss', sac.log['value_loss'][-1], sac.log['policy_loss'][-1], sac.log['q_value_loss'][-1])
         rewards.append([frame_idx, episode_reward])
         ep_num += 1
+        beta = beta * 0.8
     print('saving final data set')
     pickle.dump(rewards, open(path + 'reward_data'+ '.pkl', 'wb'))
     torch.save(policy.state_dict(), path + 'policy_' + 'final' + '.pt')

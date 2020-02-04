@@ -196,7 +196,7 @@
             <joint joint="robot0:THJ0" coef="-0.009"></joint>
         </fixed>
     </tendon>
-    
+
     <sensor>
         <jointpos name="robot0:Sjp_WRJ1" joint="robot0:WRJ1"></jointpos>
         <jointpos name="robot0:Sjp_WRJ0" joint="robot0:WRJ0"></jointpos>

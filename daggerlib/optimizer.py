@@ -77,3 +77,42 @@ class DAggerOnlineOptim(object):
                 if k % 10 == 0:
                     print('epoch', k, 'loss', clone_loss.item())
             self.log['loss'].append(clone_loss.item())
+
+
+class DAggerMDNOptim(object):
+
+    def __init__(self, policy, replay_buffer, lr=0.01):
+
+        # reference the model and buffer
+        self.policy         = policy
+        self.replay_buffer  = replay_buffer
+
+        # set the model optimizer
+        self.optimizer  = optim.Adam(self.policy.parameters(), lr=lr)
+
+        # logger
+        self.log = {'loss' : []}
+
+    def update_policy(self, batch_size, epochs=1, verbose=False):
+        if batch_size > len(self.replay_buffer):
+            batch_size = len(self.replay_buffer)
+        for k in range(epochs):
+            state, action, next_state, expert_action = self.replay_buffer.sample(batch_size)
+
+            state  = torch.FloatTensor(state)
+            expert_action = torch.FloatTensor(expert_action)
+
+
+            log_probs = self.policy.logits(states, expert_action)
+
+            # pi = Normal(mu, log_std.exp())
+            clone_loss = -torch.mean(log_probs)
+
+            self.optimizer.zero_grad()
+            clone_loss.backward()
+            self.optimizer.step()
+
+            if verbose:
+                if k % 10 == 0:
+                    print('epoch', k, 'loss', clone_loss.item())
+            self.log['loss'].append(clone_loss.item())

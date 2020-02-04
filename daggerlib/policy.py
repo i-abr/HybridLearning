@@ -19,8 +19,8 @@ class Policy(nn.Module):
         self.ml2 = nn.Linear(layers[0], layers[1])
         self.ml3 = nn.Linear(layers[1], num_actions)
 
-        self.ml3.weight.data.uniform_(-init_w, init_w)
-        self.ml3.bias.data.uniform_(-init_w, init_w)
+        # self.ml3.weight.data.uniform_(-init_w, init_w)
+        # self.ml3.bias.data.uniform_(-init_w, init_w)
 
 
         self.vl1 = nn.Linear(num_states, layers[0])
@@ -70,6 +70,6 @@ class Policy(nn.Module):
         log_std = self.vl3(log_std)
 
         # log_std = torch.clamp(self.log_std.expand_as(a), -20.,2.)
-        log_std = torch.clamp(log_std, -4.,2.)
+        log_std = torch.clamp(log_std, -4.,4.)
 
         return a, log_std
