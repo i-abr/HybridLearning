@@ -26,19 +26,19 @@ def mppi(state, model, u_seq, horizon, lam=0.2, sig=0.1):
 
     for t in range(horizon):
         #s[t] -= np.min(s[t])
-        s[t] -= np.max(s[t])
+        s[t] -= np.max(s[t] - sig * np.sum(eps[t]**2))
         w = np.exp(s[t]/lam) + 1e-4 # offset
         w /= np.sum(w)
         u_seq[t] = u_seq[t] + np.dot(w, eps[t])
-    return savgol_filter(u_seq, horizon-1, 6, axis=0)
+    return savgol_filter(u_seq, horizon-1, 3, axis=0)
 
 def main():
     # env   = CubeCatchEnv()
     # model = CubeCatchMultEnv(num_sims=10)
     env   = CubeManipEnv()
-    model = CubeManipMultEnv(num_sims=10)
+    model = CubeManipMultEnv(num_sims=20)
 
-    horizon = 40
+    horizon = 20
     max_iter= 100
     num_actions = env.action_space.shape[0]
     log = []
@@ -59,21 +59,28 @@ def main():
         local_log = []
         state = env.get_state()
         u_seq = [np.zeros(model.action_space.shape[0]) for _ in range(horizon)]
+        u_seq = mppi(state, model, u_seq, horizon, sig=0.1, lam=.1)
+        action = u_seq[0].copy()
         for _ in range(150):
-            state = env.get_state()
-            u_seq = mppi(state, model, u_seq, horizon, sig=0.4, lam=.2)
+
             #eps = np.random.normal(0., 0.1, size=(num_actions,))
-            action = env.action_space.sample()
-            next_obs, rew, done, _ = env.step(u_seq[0])
-            #env.render()
+            next_obs, rew, done, _ = env.step(action)
+            env.render()
             if done: break
+
+            state = env.get_state()
+            u_seq = mppi(state, model, u_seq, horizon, sig=0.2, lam=.1)
+            next_action = u_seq[0].copy()
 
             # local_log['states'].append(obs + np.random.normal(0., 0.01, size=obs.shape))
             # local_log['next_states'].append(next_obs + np.random.normal(0., 0.01, size=obs.shape))
             # local_log['actions'].append(u_seq[0].copy())
-            local_log.append((obs.copy(), u_seq[0].copy(), rew, next_obs.copy(), u_seq[1].copy(), done))
+            local_log.append((obs.copy(),action.copy(), rew, next_obs.copy(), next_action.copy(), done))
 
             obs = next_obs
+            action = next_action
+            # print(state)
+            # print(obs)
 
             # env.render()
             u_seq[:-1] = u_seq[1:]

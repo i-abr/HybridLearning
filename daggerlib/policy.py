@@ -60,6 +60,8 @@ class Policy(nn.Module):
         a = s
         a = F.relu(self.ml1(a))
         a = F.relu(self.ml2(a))
+        # a = torch.sin(self.ml1(a))
+        # a = torch.sin(self.ml2(a))
         a = self.ml3(a)
 
         log_std = s

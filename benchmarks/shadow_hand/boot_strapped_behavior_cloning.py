@@ -53,6 +53,7 @@ parser.set_defaults(render=True)
 
 args = parser.parse_args()
 
+import time
 
 
 class ActionWrapper(object):
@@ -95,9 +96,9 @@ if __name__ == '__main__':
     # expert_policy = SmallReactivePolicy(env.observation_space, env.action_space)
     beta = 1.0
 
-    policy = Policy(state_dim, action_dim)
+    policy = Policy(state_dim, action_dim, layers=[177, 132])
 
-    model = Model(state_dim, action_dim, hidden_dim=200)
+    model = Model(state_dim, action_dim, hidden_dim=256)
 
     # get expert data
     expert_data = pickle.load(open('../experts/data/shadow_hand/cube_manip/demonstrations.pkl', 'rb'))
@@ -107,7 +108,7 @@ if __name__ == '__main__':
     optimizer = DAggerOnlineOptim(policy, buffer, lr=0.01)
 
     model_replay_buffer = SARSAReplayBuffer(capacity)
-    model_optim = ModelOptimizer(model, model_replay_buffer, lr=args.model_lr, lam=0.)
+    model_optim = ModelOptimizer(model, model_replay_buffer, lr=args.model_lr, lam=0.2)
 
 
     planner = PathIntegral(model, policy,
@@ -158,8 +159,8 @@ if __name__ == '__main__':
             if done:
                 break
 
-        optimizer.update_policy(batch_size, epochs=100)
-        model_optim.update_model(batch_size, mini_iter=100)
+        optimizer.update_policy(batch_size, epochs=100, verbose=True)
+        model_optim.update_model(batch_size, mini_iter=100, verbose=True)
 
         state = env.reset()
         planner.reset()
@@ -170,12 +171,13 @@ if __name__ == '__main__':
         episode_reward = 0
         for step in range(max_steps):
 
-            for _ in range(frame_skip):
-                next_state, reward, done, info = env.step(action.copy())
+
+            # for _ in range(frame_skip):
+            next_state, reward, done, info = env.step(action.copy())
 
             # next_expert_action = expert_policy.act(next_state)
-            # next_action = planner(next_state)
             next_action = planner(next_state)
+            # next_action = policy.get_action(next_state)
             # if random.random() < beta:
             #     next_action = next_expert_action.copy()
             # else:
@@ -201,6 +203,8 @@ if __name__ == '__main__':
 
             if args.render:
                 env.render("human")
+
+            time.sleep(1/60.)
 
 
             if frame_idx % int(max_frames/10) == 0:

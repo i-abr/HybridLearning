@@ -8,7 +8,7 @@ import os
 
 class CubeManipMultEnv(MujocoMultEnv):# TODO: verify the ->, utils.EzPickle): functionality
 
-    def __init__(self, frame_skip=5, num_sims=10):
+    def __init__(self, frame_skip=10, num_sims=10):
 
         self.num_sims = num_sims
 
@@ -51,22 +51,27 @@ class CubeManipMultEnv(MujocoMultEnv):# TODO: verify the ->, utils.EzPickle): fu
 
     def _get_cost(self, data):
         done = False
-        obj_pos     = data.site_xpos[self.obj_sid].ravel()
-        obj_config  = data.site_xmat[self.obj_sid].reshape((3,3))
+        obj_pos     = data.body_xpos[self.obj_bid].ravel()
+        # obj_config  = data.site_xmat[self.obj_sid].reshape((3,3))
+        obj_config = data.body_xquat[self.obj_bid].ravel()
 
         palm_pos = data.site_xpos[self.palm_sid].ravel()
         vel = data.qvel[-6:].ravel()
         dist = 0.5*np.linalg.norm(palm_pos - obj_pos)
 
-        desired_config = data.body_xmat[self.target_obj_bid].reshape((3,3))
+        # desired_config = data.body_xmat[self.target_obj_bid].reshape((3,3))
+        desired_config = data.body_xquat[self.target_obj_bid].ravel()
+
         desired_pos    = data.body_xpos[self.target_obj_bid].ravel()
 
         cost = dist
-        tr_RtR = np.trace(obj_config.T.dot(desired_config))
-        _arc_c_arg = (tr_RtR - 1)/2.0
-        _th = np.arccos(_arc_c_arg)
+        # tr_RtR = np.trace(obj_config.T.dot(desired_config))
+        # _arc_c_arg = (tr_RtR - 1)/2.0
+        # _th = np.arccos(_arc_c_arg)
         #_th = np.linalg.norm(obj_config.ravel() - desired_config.ravel())
-        orien_err = _th**2
+        _th = np.linalg.norm(desired_config - obj_config)
+
+        orien_err = _th
 
         #if dist < 0.015:
         #    cost += dist2targ

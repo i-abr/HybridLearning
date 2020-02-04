@@ -10,7 +10,7 @@ from .jacobian import jacobian
 
 class ModelOptimizer(object):
 
-    def __init__(self, model, replay_buffer, lr=1e-2, eps=1e-1, lam=0.1, expert_data=None):
+    def __init__(self, model, replay_buffer, lr=1e-2, eps=1e-1, lam=0.2, expert_data=None):
 
         # reference the model and buffer
         self.model          = model
@@ -28,8 +28,9 @@ class ModelOptimizer(object):
             self.expert_data = expert_data
 
 
-    def update_model(self, batch_size, mini_iter=1):
-
+    def update_model(self, batch_size, mini_iter=1, verbose=False):
+        if batch_size > len(self.replay_buffer):
+            batch_size = len(self.replay_buffer)
         for k in range(mini_iter):
             states, actions, rewards, next_states, next_actions, done = self.replay_buffer.sample(batch_size)
 
@@ -64,7 +65,7 @@ class ModelOptimizer(object):
             rew_loss = torch.mean(torch.pow((rewards+self._lam*(1-done)*next_vals).detach() - pred_rew,2))
             # rew_loss = torch.mean(torch.pow(rewards - pred_rew,2))
 
-            model_loss = -torch.mean(state_dist.log_prob(next_states)) #+ self._eps * torch.norm(df, dim=[1,2]).mean()
+            model_loss = -torch.mean(state_dist.log_prob(next_states))# + 1e-2 * torch.norm(df, dim=[1,2]).mean()
             # - 1e-3*pred_next_state_dist.entropy().mean()
 
             loss = 0.5 * rew_loss + model_loss
@@ -72,9 +73,14 @@ class ModelOptimizer(object):
             self.model_optimizer.zero_grad()
             loss.backward()
             self.model_optimizer.step()
-        self.log['loss'].append(loss.item())
-        self.log['model_loss'].append(model_loss.item())
-        self.log['rew_loss'].append(rew_loss.item())
+            self.log['loss'].append(loss.item())
+            self.log['model_loss'].append(model_loss.item())
+            self.log['rew_loss'].append(rew_loss.item())
+            if verbose:
+                if k % 10 == 0:
+                    print('epoch', k, 'loss {}, model loss {}, rew loss {}'.format(
+                        self.log['loss'][-1], self.log['model_loss'][-1], self.log['rew_loss'][-1]
+                    ))
 
 class MDNModelOptimizer(object):
 

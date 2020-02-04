@@ -46,12 +46,14 @@ class Model(nn.Module):
 
         x = F.relu(self.linear1(x))
         x = F.relu(self.linear2(x))
+        # x = torch.sin(self.linear1(x))
+        # x = torch.sin(self.linear2(x))
         x = self.mean_linear(x)
 
         # in case I want to update the way the var looks like
-        std = torch.clamp(self.log_std, -10., 2.).exp().expand_as(s)
+        std = torch.clamp(self.log_std, -4., 2.).exp().expand_as(s)
 
-        return s + x, std, self.reward_fun(torch.cat([s, a], axis=1))
+        return x, std, self.reward_fun(torch.cat([s, a], axis=1))
 
     def step(self, x, u):
         mean, std, rew = self.forward(x, u)

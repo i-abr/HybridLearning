@@ -56,7 +56,7 @@ class DAggerOnlineOptim(object):
         # logger
         self.log = {'loss' : []}
 
-    def update_policy(self, batch_size, epochs=1):
+    def update_policy(self, batch_size, epochs=1, verbose=False):
         if batch_size > len(self.replay_buffer):
             batch_size = len(self.replay_buffer)
         for k in range(epochs):
@@ -67,10 +67,13 @@ class DAggerOnlineOptim(object):
 
             mu, log_std = self.policy(state)
             pi = Normal(mu, log_std.exp())
-            clone_loss = -torch.mean(pi.log_prob(expert_action)) #- entropy_eps * torch.mean(pred_action_dist.entropy())
+            clone_loss = -torch.mean(pi.log_prob(expert_action))- 1e-3 * torch.mean(pi.entropy())
 
             self.optimizer.zero_grad()
             clone_loss.backward()
             self.optimizer.step()
 
+            if verbose:
+                if k % 10 == 0:
+                    print('epoch', k, 'loss', clone_loss.item())
             self.log['loss'].append(clone_loss.item())
