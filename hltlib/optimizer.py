@@ -22,15 +22,17 @@ class ModelOptimizer(object):
         self._lam = lam
         self.log = {'loss' : [], 'rew_loss': []}
 
-    def update_model(self, batch_size, mini_iter=1):
+    def update_model(self, batch_size, mini_iter=1, verbose=False):
+
+        if batch_size > len(self.replay_buffer):
+            batch_size = len(self.replay_buffer)
 
         for k in range(mini_iter):
-            if batch_size > len(self.replay_buffer):
-                batch_size = len(self.replay_buffer)
+
             states, actions, rewards, next_states, next_action, done = self.replay_buffer.sample(batch_size)
 
             states = torch.FloatTensor(states)
-            states.requires_grad = True
+            # states.requires_grad = True
             next_states = torch.FloatTensor(next_states)
             actions = torch.FloatTensor(actions)
             next_action = torch.FloatTensor(next_action)
@@ -41,14 +43,14 @@ class ModelOptimizer(object):
 
             state_dist = Normal(pred_mean, pred_std)
 
-            df = jacobian(pred_mean, states)
+            # df = jacobian(pred_mean, states)
 
             next_vals = self.model.reward_fun(torch.cat([next_states, next_action], axis=1))
 
             rew_loss = torch.mean(torch.pow((rewards+self._lam*(1-done)*next_vals).detach() - pred_rew,2))
             # rew_loss = torch.mean(torch.pow(rewards - pred_rew,2))
 
-            model_loss = -torch.mean(state_dist.log_prob(next_states))+ self._eps * torch.norm(df, dim=[1,2]).mean()
+            model_loss = -torch.mean(state_dist.log_prob(next_states)) #+ self._eps * torch.norm(df, dim=[1,2]).mean()
             # - 1e-3*pred_next_state_dist.entropy().mean()
 
             loss = 0.5 * rew_loss + model_loss
@@ -56,8 +58,12 @@ class ModelOptimizer(object):
             self.model_optimizer.zero_grad()
             loss.backward()
             self.model_optimizer.step()
-        self.log['loss'].append(loss.item())
-        self.log['rew_loss'].append(rew_loss.item())
+
+            self.log['loss'].append(loss.item())
+            self.log['rew_loss'].append(rew_loss.item())
+
+            if verbose:
+                print('model loss', self.log['loss'][-1], 'rew loss', self.log['rew_loss'][-1])
 
 class MDNModelOptimizer(object):
 

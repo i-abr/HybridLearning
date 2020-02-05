@@ -43,18 +43,10 @@ parser.add_argument('--value_lr',   type=float, default=3e-4)
 parser.add_argument('--soft_q_lr',  type=float, default=3e-4)
 
 parser.add_argument('--horizon', type=int, default=5)
-parser.add_argument('--model_iter', type=int, default=1)
+parser.add_argument('--model_iter', type=int, default=2)
 parser.add_argument('--trajectory_samples', type=int, default=20)
 parser.add_argument('--lam',  type=float, default=0.1)
 
-
-# parser.add_argument('--done_util', dest='done_util', action='store_true')
-# parser.add_argument('--no_done_util', dest='done_util', action='store_false')
-# parser.set_defaults(done_util=True)
-
-# parser.add_argument('--render', dest='render', action='store_true')
-# parser.add_argument('--no_render', dest='render', action='store_false')
-# parser.set_defaults(render=False)
 
 args = parser.parse_args()
 
@@ -120,6 +112,7 @@ if __name__ == '__main__':
             episode_reward = 0
             episode_success = 0
             for step in range(max_steps):
+
                 if np.isnan(action).any():
                     print('got nan')
                     # print(replay_buffer.buffer)
@@ -127,63 +120,32 @@ if __name__ == '__main__':
                     os._exit(0)
                 next_state, reward, done = env.step(action.copy())
 
-                start_time = time.time()
-                # print('state',next_state)
                 next_action = planner(next_state.copy())
-                # next_action = policy_net.get_action(next_state.copy()) # policy only
-
-                # print('elapsed time',time.time()-start_time)
-                print(step)
 
                 replay_buffer.push(state, action, reward, next_state, done)
                 model_replay_buffer.push(state, action, reward, next_state, next_action, done)
 
                 if len(replay_buffer) > batch_size:
-                    # if frame_idx > 20:
-                    # for _ in range(10):
-                    sac.soft_q_update(batch_size);
-                    model_optim.update_model(batch_size, mini_iter=args.model_iter)
+                    sac.soft_q_update(batch_size, verbose=True)
+                    model_optim.update_model(batch_size, mini_iter=args.model_iter, verbose=True)
 
-                state = next_state
-                action = next_action
+                state = next_state.copy()
+                action = next_action.copy()
                 episode_reward += reward
                 frame_idx += 1
 
-                # if args.render:
-                #     env.render("human"
-                print(len(rewards), len(model_optim.log['rew_loss']))
-                print(episode_reward)
-                if (frame_idx % int(max_frames/20) == 0) and (len(replay_buffer) > batch_size):
-                    # print(
-                    #     'frame : {}/{}, \t last rew : {}, \t rew loss : {}'.format(
-                    #         frame_idx, max_frames, rewards[-1][1], model_optim.log['rew_loss'][-1]
-                    #     )
-                    # )
-                    start_time = time.time()
-                    pickle.dump(rewards, open(path + 'reward_data' + '.pkl', 'wb'))
-                    pickle.dump(rewards, open(path + 'reward_data'+ '.pkl', 'wb'))
-                    torch.save(policy_net.state_dict(), path + 'policy_' + str(frame_idx) + '.pt')
-                    end_time = time.time()
-                    print('pickle elapsed time', start_time)
+                # if (frame_idx % int(max_frames/20) == 0) and (len(replay_buffer) > batch_size):
+                #     pickle.dump(rewards, open(path + 'reward_data' + '.pkl', 'wb'))
+                #     print('pickle elapsed time', start_time)
                 if done:
                     episode_success = 1
                     print('done loop')
                     break
                 else:
                     rate.sleep()
-            #if len(replay_buffer) > batch_size:
-            #    for k in range(200):
-            #        sac.soft_q_update(batch_size)
-            #        model_optim.update_model(batch_size, mini_iter=1)#args.model_iter)
-
-            if len(replay_buffer) > batch_size:
-                print('ep rew', ep_num, episode_reward, model_optim.log['rew_loss'][-1], model_optim.log['loss'][-1])
-                print('ssac loss', sac.log['value_loss'][-1], sac.log['policy_loss'][-1], sac.log['q_value_loss'][-1])
 
             rewards.append([frame_idx, episode_reward])
             success.append([frame_idx, ep_num, episode_success,reward])
-            print(success)
-            print(rewards)
             ep_num += 1
         print('saving final data set')
         print(success)
