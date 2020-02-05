@@ -14,7 +14,7 @@ class PolicyNetwork(nn.Module):
 
         self.linear1 = nn.Linear(num_inputs, hidden_size)
 
-        # self.linear2 = nn.Linear(num_inputs, hidden_size)
+        self.linear2 = nn.Linear(num_inputs, hidden_size)
 
         self.mean_linear = nn.Linear(hidden_size, num_actions)
         self.mean_linear.weight.data.uniform_(-init_w, init_w)

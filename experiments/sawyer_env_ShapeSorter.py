@@ -124,10 +124,10 @@ class sawyer_env(object):
             # reward += 10
             print('Reached goal!')
 
-        rospy.loginfo("action reward: %f", reward)
-        rospy.loginfo("distance: %f", distance)
-        rospy.loginfo("torque: %f", torque)
-        rospy.loginfo("force: %f", force)
+        # rospy.loginfo("action reward: %f", reward)
+        # rospy.loginfo("distance: %f", distance)
+        # rospy.loginfo("torque: %f", torque)
+        # rospy.loginfo("force: %f", force)
 
         return reward, done
 
