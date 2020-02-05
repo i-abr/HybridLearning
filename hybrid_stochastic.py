@@ -37,6 +37,7 @@ class PathIntegral(object):
                 log_prob.append(pi.log_prob(self.a[t].expand_as(v)).sum(1))
                 # log_prob.append(pi.log_prob(v).sum(1))
                 da.append(v - self.a[t].expand_as(v))
+                da.append(v)
                 s, rew = self.model.step(s, v)
                 mu, log_std = self.policy(s)
                 sk.append(rew.squeeze())
@@ -54,5 +55,5 @@ class PathIntegral(object):
             w.div_(torch.sum(w, dim=1, keepdim=True))
             for t in range(self.t_H):
                 self.a[t] = self.a[t] + torch.mv(da[t].T, w[t])
-
+                # self.a[t] = torch.mv(da[t].T, w[t])
             return self.a[0].clone().numpy()
