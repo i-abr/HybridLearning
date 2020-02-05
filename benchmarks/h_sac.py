@@ -22,7 +22,7 @@ from model import MDNModelOptimizer, MDNModel
 
 # from experts.shadow_hand_manipulation import
 
-from experts.AntBulletEnv import SmallReactivePolicy
+# from experts.AntBulletEnv import SmallReactivePolicy
 
 # argparse things
 import argparse
@@ -92,7 +92,7 @@ if __name__ == '__main__':
     state_dim  = env.observation_space.shape[0]
     hidden_dim = 64
 
-    expert_policy = SmallReactivePolicy(env.observation_space, env.action_space)
+    # expert_policy = SmallReactivePolicy(env.observation_space, env.action_space)
     beta = 1.0
 
     policy = Policy(state_dim, action_dim)
@@ -145,8 +145,8 @@ if __name__ == '__main__':
             #     next_expert_action = None
             model_replay_buffer.push(state, action, reward, next_state, next_action, done)
 
-            if expert_action is not None:
-                buffer.push(state, action, next_state, expert_action)
+            # if expert_action is not None:
+            #     buffer.push(state, action, next_state, expert_action)
 
             if len(buffer) > batch_size:
                 optimizer.update_policy(batch_size)
