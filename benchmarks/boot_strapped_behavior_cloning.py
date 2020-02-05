@@ -51,6 +51,10 @@ parser.add_argument('--render', dest='render', action='store_true')
 parser.add_argument('--no_render', dest='render', action='store_false')
 parser.set_defaults(render=True)
 
+parser.add_argument('--save', dest='save', action='store_true')
+parser.add_argument('--no_save', dest='save', action='store_false')
+parser.set_defaults(save=False)
+
 args = parser.parse_args()
 
 
@@ -83,10 +87,11 @@ if __name__ == '__main__':
 
     now = datetime.now()
     date_str = now.strftime("%Y-%m-%d_%H-%M-%S/")
-
+    
     path = './data/' + env_name +  '/' + 'boot_strapped_bc/' + date_str
-    if os.path.exists(path) is False:
-        os.makedirs(path)
+    if args.save:
+        if os.path.exists(path) is False:
+            os.makedirs(path)
 
     action_dim = env.action_space.shape[0]
     state_dim  = env.observation_space.shape[0]
@@ -215,8 +220,9 @@ if __name__ == '__main__':
                     )
                 )
 
-                pickle.dump(rewards, open(path + 'reward_data' + '.pkl', 'wb'))
-                torch.save(policy.state_dict(), path + 'policy_' + str(frame_idx) + '.pt')
+                if args.save:
+                    pickle.dump(rewards, open(path + 'reward_data' + '.pkl', 'wb'))
+                    torch.save(policy.state_dict(), path + 'policy_' + str(frame_idx) + '.pt')
 
             if args.done_util:
                 if done:
@@ -230,5 +236,6 @@ if __name__ == '__main__':
         rewards.append([frame_idx, episode_reward])
         ep_num += 1
     print('saving final data set')
-    pickle.dump(rewards, open(path + 'reward_data'+ '.pkl', 'wb'))
-    torch.save(policy.state_dict(), path + 'policy_' + 'final' + '.pt')
+    if args.save:
+        pickle.dump(rewards, open(path + 'reward_data'+ '.pkl', 'wb'))
+        torch.save(policy.state_dict(), path + 'policy_' + 'final' + '.pt')

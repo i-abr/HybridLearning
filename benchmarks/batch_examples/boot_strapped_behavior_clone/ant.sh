@@ -10,6 +10,7 @@ do
                 --trajectory_samples 40 \
                 --frame_skip 1 \
                 --lam 1.0 \
-                --no_render
+                --render \
+                --no_save
     echo "trial $i out of 2"
 done
