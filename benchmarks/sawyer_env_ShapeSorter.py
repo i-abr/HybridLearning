@@ -60,7 +60,9 @@ class sawyer_env(object):
         target = np.zeros(9)
         # target[0:3] = np.array([0.636175521396, -0.0225218216069, 0.14]) # (distance) [x,y,z], trapezoid
         # target[0:3] = np.array([0.608951905342, 0.0370819526536, 0.1436]) # diamond
-        target[0:3] = np.array([0.613297719487, 0.0337612632052, 0.14])
+        # target[0:3] = np.array([ 0.618630950525, 0.0360745993657, 0.142493648115])
+        target[0:3] = np.array([0.618718108914, 0.0361612427719, 0.143426261079])
+
         ee = np.array([self.tip_state(self.tip_name).pose.position.x, self.tip_state(self.tip_name).pose.position.y,self.tip_state(self.tip_name).pose.position.z,
                        self.tip_state(self.tip_name).wrench.force.x,self.tip_state(self.tip_name).wrench.force.y,self.tip_state(self.tip_name).wrench.force.z,
                        self.tip_state(self.tip_name).wrench.torque.x,self.tip_state(self.tip_name).wrench.torque.y,self.tip_state(self.tip_name).wrench.torque.z])
@@ -114,8 +116,8 @@ class sawyer_env(object):
 
         reward += -distance
         reward += -l2norm
-        reward += -torque*1e-6
-        reward += -force*1e-6
+        reward += -torque*1e-2
+        reward += -force*1e-2
 
         if (distance < thresh):
             done = True

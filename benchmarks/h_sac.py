@@ -38,9 +38,9 @@ arg parse things
 parser = argparse.ArgumentParser()
 # parser.add_argument('--env',        type=str,   help=envs.getlist())
 parser.add_argument('--max_steps',  type=int,   default=500)
-parser.add_argument('--max_frames', type=int,   default=10000)
+parser.add_argument('--max_frames', type=int,   default=3000)
 # parser.add_argument('--frame_skip', type=int,   default=2)
-parser.add_argument('--model_lr',   type=float, default=3e-3)#0.01)
+parser.add_argument('--model_lr',   type=float, default=3e-3)
 parser.add_argument('--policy_lr',  type=float, default=3e-3)
 parser.add_argument('--value_lr',   type=float, default=3e-4)
 parser.add_argument('--soft_q_lr',  type=float, default=3e-4)
@@ -106,6 +106,7 @@ if __name__ == '__main__':
 
         frame_idx  = 0
         rewards    = []
+        success    = []
         batch_size = 128
 
         ep_num = 0
@@ -120,6 +121,7 @@ if __name__ == '__main__':
             # action = policy_net.get_action(state.copy()) # policy only
 
             episode_reward = 0
+            episode_success = 0
             for step in range(max_steps):
                 if np.isnan(action).any():
                     print('got nan')
@@ -162,10 +164,12 @@ if __name__ == '__main__':
                     # )
                     start_time = time.time()
                     pickle.dump(rewards, open(path + 'reward_data' + '.pkl', 'wb'))
+                    pickle.dump(rewards, open(path + 'reward_data'+ '.pkl', 'wb'))
                     torch.save(policy_net.state_dict(), path + 'policy_' + str(frame_idx) + '.pt')
                     end_time = time.time()
                     print('pickle elapsed time', start_time)
                 if done:
+                    episode_success = 1
                     print('done loop')
                     break
                 else:
@@ -178,9 +182,16 @@ if __name__ == '__main__':
             if len(replay_buffer) > batch_size:
                 print('ep rew', ep_num, episode_reward, model_optim.log['rew_loss'][-1], model_optim.log['loss'][-1])
                 print('ssac loss', sac.log['value_loss'][-1], sac.log['policy_loss'][-1], sac.log['q_value_loss'][-1])
+
             rewards.append([frame_idx, episode_reward])
+            success.append([frame_idx, ep_num, episode_success,reward])
+            print(success)
+            print(rewards)
             ep_num += 1
         print('saving final data set')
+        print(success)
+        print(rewards)
+        pickle.dump(success, open(path + 'success_data'+ '.pkl', 'wb'))
         pickle.dump(rewards, open(path + 'reward_data'+ '.pkl', 'wb'))
         torch.save(policy_net.state_dict(), path + 'policy_' + 'final' + '.pt')
 

@@ -85,24 +85,12 @@ class go_to_pose(object):
         self.delta_theta = deepcopy(self.reset_theta)
 
         # initalize home configuration
-        # home_orientation = Quaternion(0, 1, 0, 0)
-        # quaternion = (home_orientation.x, home_orientation.y,
-        #               home_orientation.z, home_orientation.w)
-        # home_orientation = (-0.0788724680665, 0.996802985705, 7.87196274824e-05, 0.0127646101787) # trapezoid
-        # home_orientation = (-0.495795469411, 0.868382424738, 0.00768893118336, -0.00630057572268) # diamond
         home_orientation = (-0.464134980767, 0.885626012962, -0.0064449616952, 0.0142740065387)
 
         self.home_orientation_rpy = np.asarray(transformations.euler_from_quaternion(home_orientation))
         # self.filtered_orientation = np.zeros(3)
         self.reset_arm = False
 
-        # home_pose = [-0.2, -0.6, 0.0, 1.9, 0.0, 0.3, 1.571]; # straight, reacher
-        # home_pose = [-0.24649609375, -0.5411318359375, -0.3039619140625, 1.901158203125, 0.8013974609375, 0.36883203125, -0.1368642578125] # diagonal, reacher
-        # home_pose = [-0.271728515625, -0.5496796875, -0.2440283203125, 1.94983984375, 0.7148427734375, 0.308125, -0.38069921875] # diagonal, reacher
-        # home_pose = [ 0.053275390625, -0.3608935546875, -0.439890625, 1.6846865234375, 1.010955078125, 0.504203125, -0.299798828125] # middle, reacher
-        # home_pose = [0.4487978515625, -0.199642578125, -1.056333984375, 1.7263115234375, 1.4568603515625, 1.0072783203125, 0.5674404296875] # above toy sorter
-        # home_pose = [0.4357548828125, -0.1204091796875, -1.06370703125, 1.6705107421875, 1.5042177734375, 1.042654296875, 0.5639287109375] #  above toy sorter, trapezoid
-        # home_pose = [0.4079306640625, -0.107732421875, -1.0937724609375, 1.654755859375, 1.4440654296875, 1.11873828125, -0.47580078125] # diamond
         home_pose = [0.4321650390625, -0.1204091796875, -1.06283984375, 1.6995654296875, 1.5470302734375, 1.049638671875, -0.458474609375]
 
         self.home_joints = dict(zip(self.joint_names, home_pose))
@@ -112,7 +100,12 @@ class go_to_pose(object):
         while (self.got_joints == False):
             # print('waiting')
             time.sleep(0.2)
-        self.desired_theta_dot = deepcopy(self.reset_theta)
+        home_torque = [0.12, -0.448, 3.268, -2.112,-13.92,-28.18, 0.156]
+        # home_torque = [0.156, -28.18, -13.92, -2.112, 3.268, -0.448, 0.12]
+        self.reset_torque = dict()
+        for i in range(len(self.joint_names)):
+            self.reset_torque[self.joint_names[i]] = home_torque[i]
+        self.desired_torques = deepcopy(self.reset_torque)
 
         self.raw_command = RelativeMove()
         self.filtered_command = RelativeMove()
@@ -133,6 +126,9 @@ class go_to_pose(object):
 
     def joint_angles(self):
         return deepcopy(self._joint_angle)
+
+    def joint_torques(self):
+        return deepcopy(self._joint_effort)
 
     def _on_tip_states(self, msg):
         self._tip_states = deepcopy(msg)
@@ -157,7 +153,6 @@ class go_to_pose(object):
         _command_msg.mode = JointCommand.POSITION_MODE
         _command_msg.header.stamp = rospy.Time.now()
         self._pub_joint_cmd.publish(_command_msg)
-        print(_command_msg)
 
     def move_to_joint_positions(self, positions, timeout=15.0,
                                 threshold=settings.JOINT_ANGLE_TOLERANCE,
@@ -205,6 +200,7 @@ class go_to_pose(object):
         _command_msg.mode = JointCommand.TORQUE_MODE
         _command_msg.header.stamp = rospy.Time.now()
         self._pub_joint_cmd.publish(_command_msg)
+        print(_command_msg)
 
     '''
     custom
@@ -221,27 +217,26 @@ class go_to_pose(object):
     def raw_command_callback(self,_data):
         self.raw_command = _data
 
-    def ee_vel_to_joint_vel(self,_data,orientation):
-        # current_pose = self.joint_angles() # get current state
-        # print(current_pose.values())
+    def ee_torque_to_joint_torque(self,_data):
+        current_torque = self.joint_torques
         # calculate jacobian_pseudo_inverse
-        data = self.clip_velocities(_data)
+        data = self.clip_torques(_data)
 
         jacobian_ps = self.py_kdl.jacobian_pseudo_inverse(joint_values=None)
         # print(jacobian_ps)
 
-        xdot = np.zeros(6)
-        xdot[0] = data.dx
-        xdot[1] = data.dy
-        xdot[2] = data.dz
-        xdot[3] = orientation[0]
-        xdot[4] = orientation[1]
-        xdot[5] = orientation[2]
+        torque = np.zeros(6)
+        torque[0] = data.dx
+        torque[1] = data.dy
+        torque[2] = data.dz
+        # torque[3] = orientation[0]
+        # torque[4] = orientation[1]
+        # torque[5] = orientation[2]
 
-        desired_theta_dot = np.matmul(jacobian_ps,xdot)
+        desired_torques = np.matmul(jacobian_ps,torque)
 
         for i in range(len(self.joint_names)):
-            self.desired_theta_dot[self.joint_names[i]] = desired_theta_dot[0,i]
+            self.desired_torques[self.joint_names[i]] = desired_torques[0,i]
 
         # print(self.desired_theta_dot)
 
@@ -252,12 +247,6 @@ class go_to_pose(object):
         current_orientation_rpy = np.asarray(transformations.euler_from_quaternion(quaternion))
         correction = current_orientation_rpy-self.home_orientation_rpy
         correction[2] *= -1
-        # print('current')
-        # print(current_orientation_rpy)
-        # print('home')
-        # print(self.home_orientation_rpy)
-        # print('correction')
-        # print(correction)
         for i in range(3):
             if correction[i] < -np.pi:
                 correction[i] += 2*np.pi
@@ -285,36 +274,38 @@ class go_to_pose(object):
 
                 # reset parameters
                 # self.delta_theta = deepcopy(self.reset_theta)
-                self.desired_theta_dot = deepcopy(self.reset_theta)  # copy(self.home_joints)
+                self.desired_torques = deepcopy(self.reset_torque)  # copy(self.home_joints)
                 rospy.loginfo("Reset Pose")
 
                 self.reset_arm = False
                 self.raw_command = RelativeMove()
                 self.filtered_command = RelativeMove()
 
-            raw_orientation_correction = self.check_orientation()
+            # raw_orientation_correction = self.check_orientation()
             self.filtered_command.dx = self.alpha*self.filtered_command.dx+(1-self.alpha)*self.raw_command.dx
             self.filtered_command.dy = self.alpha*self.filtered_command.dy+(1-self.alpha)*self.raw_command.dy
             self.filtered_command.dz = self.alpha*self.filtered_command.dz+(1-self.alpha)*self.raw_command.dz
+            # print(self.filtered_command)
             # self.filtered_orientation = self.alpha*self.filtered_orientation+(1-self.alpha)*raw_orientation_correction
-            self.ee_vel_to_joint_vel(self.filtered_command,raw_orientation_correction*.25)
-            self.set_joint_velocities(self.desired_theta_dot)
+            # self.ee_torque_to_joint_torque(self.filtered_command)#,raw_orientation_correction*.25)
+            # print(self.desired_torques)
+            print(self.desired_torques)
+            # self.set_joint_torques(self.desired_torques)
             rate.sleep()
 
     def reset(self,req):
         self.reset_arm = True
         while (self.reset_arm == True):
             time.sleep(0.1)
-        return TriggerResponse(success=True,
-                               message="Done callback complete")
+        return TriggerResponse(success=True,message="Done callback complete")
 
-    def clip_velocities(self,action):
+    def clip_torques(self,action):
         max_x = 0.66
-        min_x = 0.56 # 0.45
+        min_x = 0.57 # 0.45
         max_y = 0.06 #0.3
-        min_y = 0.0 # -0.04 #-0.25
-        max_z = 0.3
-        min_z = 0 #0.1445
+        min_y = 0.01 # -0.04 #-0.25
+        max_z = 0.18
+        min_z = 0.1445
 
         if (self.tip_state(self.tip_name).pose.position.x > max_x):
             action.dx = np.clip(action.dx, -1,0)
