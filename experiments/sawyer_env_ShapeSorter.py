@@ -15,7 +15,7 @@ from geometry_msgs.msg import Pose2D
 from std_srvs.srv import Trigger, TriggerResponse
 
 # sawyer
-from sawyer.msg import RelativeMove
+from sawyer.msg import RelativeMove, Reward
 from intera_core_msgs.msg import EndpointState,EndpointStates
 from intera_interface import Gripper
 
@@ -23,6 +23,7 @@ class sawyer_env(object):
     def __init__(self):
         # set up ros
         self.move = rospy.Publisher('/puck/relative_move',RelativeMove,queue_size=1)
+        self.reward = rospy.Publisher('/puck/reward',Reward,queue_size=1)
         self.reset_arm = rospy.ServiceProxy('/puck/reset', Trigger)
         rospy.wait_for_service('/puck/reset', 5.0)
         rospy.Service('/puck/done', Trigger, self.doneCallback)
@@ -116,14 +117,18 @@ class sawyer_env(object):
 
         reward += -distance
         reward += -l2norm
-        reward += -torque*1e-2
-        reward += -force*1e-2
+        # reward += -torque*1e-6
+        # reward += -force*1e-6
 
         if (distance < thresh):
             done = True
             # reward += 10
             print('Reached goal!')
 
+        next_reward = Reward()
+        next_reward.reward = reward
+        next_reward.distance = distance
+        self.reward.publish(next_reward)
         # rospy.loginfo("action reward: %f", reward)
         # rospy.loginfo("distance: %f", distance)
         # rospy.loginfo("torque: %f", torque)
