@@ -49,13 +49,13 @@ class sawyer_env(object):
 
     def _on_tip_states(self, msg):
         self.got_pose = True
-        self._tip_states = deepcopy(msg)
+        self._tip_states = deepcopy(msg).states[self._tip_states.names.index("right_hand")]]
 
-    def tip_state(self, tip_name):
-        try:
-            return deepcopy(self._tip_states.states[self._tip_states.names.index(tip_name)])
-        except ValueError:
-            return None
+    # def tip_state(self, tip_name):
+    #     try:
+    #         return deepcopy(self._tip_states.states[self._tip_states.names.index(tip_name)])
+    #     except ValueError:
+    #         return None
 
     def update_state(self):
         target = np.zeros(9)
@@ -63,10 +63,10 @@ class sawyer_env(object):
         # target[0:3] = np.array([0.608951905342, 0.0370819526536, 0.1436]) # diamond
         # target[0:3] = np.array([ 0.618630950525, 0.0360745993657, 0.142493648115])
         target[0:3] = np.array([0.618718108914, 0.0361612427719, 0.143426261079])
-
-        ee = np.array([self.tip_state(self.tip_name).pose.position.x, self.tip_state(self.tip_name).pose.position.y,self.tip_state(self.tip_name).pose.position.z,
-                       self.tip_state(self.tip_name).wrench.force.x,self.tip_state(self.tip_name).wrench.force.y,self.tip_state(self.tip_name).wrench.force.z,
-                       self.tip_state(self.tip_name).wrench.torque.x,self.tip_state(self.tip_name).wrench.torque.y,self.tip_state(self.tip_name).wrench.torque.z])
+        c_tip_state = copy(self._tip_states)
+        ee = np.array([c_tip_state.pose.position.x, c_tip_state.pose.position.y, c_tip_state.pose.position.z,
+                       c_tip_state.wrench.force.x,  c_tip_state.wrench.force.y,  c_tip_state.wrench.force.z,
+                       c_tip_state.wrench.torque.x, c_tip_state.wrench.torque.y, c_tip_state.wrench.torque.z])
         self.state = ee-target
 
     def reset(self):
@@ -99,6 +99,12 @@ class sawyer_env(object):
         else:
             done = True
             reward, _ = self.reward_function()
+
+        next_reward = Reward()
+        next_reward.reward = reward
+        next_reward.distance = np.sqrt(-reward)
+        self.reward.publish(next_reward)
+
         return self.state.copy(), reward, done
 
     def reward_function(self):
@@ -115,8 +121,8 @@ class sawyer_env(object):
         done = False
         thresh = 0.032
 
-        reward += -distance
-        reward += -l2norm
+        # reward = -distance-l2norm
+        reward = -l2norm
         # reward += -torque*1e-6
         # reward += -force*1e-6
 
@@ -125,10 +131,7 @@ class sawyer_env(object):
             # reward += 10
             print('Reached goal!')
 
-        next_reward = Reward()
-        next_reward.reward = reward
-        next_reward.distance = distance
-        self.reward.publish(next_reward)
+
         # rospy.loginfo("action reward: %f", reward)
         # rospy.loginfo("distance: %f", distance)
         # rospy.loginfo("torque: %f", torque)

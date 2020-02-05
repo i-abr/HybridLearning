@@ -51,7 +51,7 @@ class PathIntegral(object):
             # sk /= torch.norm(sk, dim=1, keepdim=True)
             log_prob = torch.stack(log_prob)
             log_prob -= torch.max(log_prob, dim=1, keepdim=True)[0]
-            log_prob /= (torch.norm(log_prob,dim=1, keepdim=True) + 1e-4)
+            # log_prob /= (torch.norm(log_prob,dim=1, keepdim=True) + 1e-4)
 
             w = torch.exp(sk.div(self.lam) + log_prob) + 1e-5
             w.div_(torch.sum(w, dim=1, keepdim=True))
