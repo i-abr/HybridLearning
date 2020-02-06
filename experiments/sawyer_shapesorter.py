@@ -83,9 +83,9 @@ class sawyer_env(object):
         sawyer_env
         '''
         # set up ros
-        self.move = rospy.Publisher('/puck/relative_move',RelativeMove,queue_size=1)
-        self.reward = rospy.Publisher('/puck/reward',Reward,queue_size=1)
-        rospy.Service('/puck/done', Trigger, self.doneCallback)
+        self.move = rospy.Publisher('/test/relative_move',RelativeMove,queue_size=1)
+        self.reward = rospy.Publisher('/test/reward',Reward,queue_size=1)
+        rospy.Service('/test/done', Trigger, self.doneCallback)
 
         # set up tf
         self.got_pose = False

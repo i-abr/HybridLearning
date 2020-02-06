@@ -38,11 +38,11 @@ parser.add_argument('--max_steps',  type=int,   default=500)
 parser.add_argument('--max_frames', type=int,   default=3000)
 # parser.add_argument('--frame_skip', type=int,   default=2)
 parser.add_argument('--model_lr',   type=float, default=3e-3)
-parser.add_argument('--policy_lr',  type=float, default=0.01) #3e-3)
-parser.add_argument('--value_lr',   type=float, default=0.01) #3e-4)
-parser.add_argument('--soft_q_lr',  type=float, default=0.01) #3e-4)
+parser.add_argument('--policy_lr',  type=float, default=0.001) #3e-3)
+parser.add_argument('--value_lr',   type=float, default=0.001) #3e-4)
+parser.add_argument('--soft_q_lr',  type=float, default=0.001) #3e-4)
 
-parser.add_argument('--horizon', type=int, default=5)
+parser.add_argument('--horizon', type=int, default=10)
 parser.add_argument('--model_iter', type=int, default=2)
 parser.add_argument('--trajectory_samples', type=int, default=20)
 parser.add_argument('--lam',  type=float, default=0.1)
@@ -60,8 +60,8 @@ if __name__ == '__main__':
         now = datetime.now()
         date_str = now.strftime("%Y-%m-%d_%H-%M-%S/")
 
-        # path = './data/' + env_name +  '/' + 'h_sac/' + date_str
-        path = './data/' + env_name +  '/' + 'sac/' + date_str # policy only
+        path = './data/' + env_name +  '/' + 'h_sac/' + date_str
+        # path = './data/' + env_name +  '/' + 'sac/' + date_str # policy only
         if os.path.exists(path) is False:
             os.makedirs(path)
 
@@ -103,14 +103,10 @@ if __name__ == '__main__':
         rate=rospy.Rate(10)
 
         while frame_idx < max_frames:
-            print('h_sac > reset environment')
             state = env.reset()
-            print('h_sac > get state', state)
             planner.reset()
-            print('h_sac > get action')
             # action = planner(state.copy())
             action = policy_net.get_action(state.copy()) # policy only
-            print('h_sac > got action', action)
             episode_reward = 0
             episode_success = 0
             for step in range(max_steps):
@@ -129,9 +125,10 @@ if __name__ == '__main__':
                 model_replay_buffer.push(state, action, reward, next_state, next_action, done)
 
                 if len(replay_buffer) > batch_size:
-                    sac.soft_q_update(batch_size, verbose=True)
-                    model_optim.update_model(batch_size, mini_iter=args.model_iter, verbose=True)
-
+                    sac.soft_q_update(batch_size, verbose=False)
+                    model_optim.update_model(batch_size, mini_iter=args.model_iter, verbose=False)
+                print(frame_idx,ep_num)
+                # print(next_state, state)
                 state = next_state.copy()
                 action = next_action.copy()
                 episode_reward += reward
@@ -142,7 +139,7 @@ if __name__ == '__main__':
                 #     print('pickle elapsed time', start_time)
                 if done:
                     episode_success = 1
-                    print('done loop')desired_theta_dot
+                    print('done loop')
                     break
                 else:
                     rate.sleep()

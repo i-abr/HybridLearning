@@ -39,7 +39,7 @@ class sawyer_env(object):
         # set up py_kdl
         self.py_kdl = sawyer_kinematics("right")
 
-        # set up sawyer (ijn place of limb class)
+        # set up sawyer (in place of limb class)
         self._joint_names = RobotParams().get_joint_names("right")
         self._joint_angle = dict()
         self._joint_velocity = dict()
@@ -56,7 +56,7 @@ class sawyer_env(object):
         _tip_states_sub = rospy.Subscriber('/robot/limb/right/endpoint_state',EndpointState,self._on_tip_states,queue_size=1,tcp_nodelay=True)
 
         # set up controller
-        self.alpha = 0.8 # [0,1]
+        self.alpha = 0.2 # [0,1]
         self.reset_joint_dict = dict()
         for name in self._joint_names:
             self.reset_joint_dict[name] = 0.0
@@ -79,16 +79,16 @@ class sawyer_env(object):
 
         self.raw_command = RelativeMove()
         self.filtered_command = RelativeMove()
-        self.reset_test = True
+        self.reset_test = False
         print('controller setup complete')
         '''
         sawyer_env
         '''
         # set up ros
-        self.move = rospy.Publisher('/puck/relative_move',RelativeMove,queue_size=1)
-        self.reward = rospy.Publisher('/puck/reward',Reward,queue_size=1)
+        self.move = rospy.Publisher('/test/relative_move',RelativeMove,queue_size=1)
+        self.reward = rospy.Publisher('/test/reward',Reward,queue_size=1)
         # self.listener = tf.TransformListener()
-        rospy.Service('/puck/done', Trigger, self.doneCallback)
+        rospy.Service('/test/done', Trigger, self.doneCallback)
 
         # set up tf
         self.got_pose = False
@@ -185,9 +185,9 @@ class sawyer_env(object):
         xdot[0] = data.dx
         xdot[1] = data.dy
         xdot[2] = data.dz
-        xdot[3] = orientation[0]
-        xdot[4] = orientation[1]
-        xdot[5] = orientation[2]
+        # xdot[3] = orientation[0]
+        # xdot[4] = orientation[1]
+        # xdot[5] = orientation[2]
 
         desired_theta_dot = np.matmul(jacobian_ps,xdot)
 
@@ -290,15 +290,16 @@ class sawyer_env(object):
         self.filtered_command.dz = self.alpha*self.filtered_command.dz+(1-self.alpha)*self.raw_command.dz
         self.ee_vel_to_joint_vel(self.filtered_command,raw_orientation_correction*.25)
         self.set_joint_velocities(self.desired_theta_dot)
+        self.move.publish(self.filtered_command)
 
     '''
     sawery_env
     '''
 
     def manual_transform(self):
-        target = np.array([0.797359776117, 0.179709323582]) # [x,y]
+        target = np.array([0.689820427198, 0.084937881183]) # [x,y]
         ee = np.array([self._tip_states.pose.position.x, self._tip_states.pose.position.y])
-        self.state = ee-target
+        self.state = (ee-target)*10
 
     def reward_function(self):
         [dx_block_to_Arm, dy_block_to_Arm] = self.state.copy()
@@ -307,13 +308,13 @@ class sawyer_env(object):
 
         reward = 0
         done = False
-        thresh = 0.08
+        thresh = 0.15
 
         reward += -block_to_Arm
 
         if (block_to_Arm < thresh):
-            done = True
-            reward += 10
+            # done = True
+            # reward += 10
             print('Reached goal!')
 
         return reward, done
@@ -328,13 +329,12 @@ class sawyer_env(object):
     def step(self, _a):
         if (self.reset_test == False):
             # theta = (np.pi/4)*np.clip(_a[2],-1,1)  # keep april tags in view
-            action = 0.4*np.clip(_a, -1,1)
+            action = 0.1*np.clip(_a, -1,1)
             # publish action input
             pose = RelativeMove()
             pose.dx = action[0]
             pose.dy = action[1]
             # pose.dtheta = theta
-            self.move.publish(pose)
 
             self.raw_command = pose
             print('step function',self.raw_command)
