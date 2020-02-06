@@ -26,7 +26,7 @@ from hltlib import PathIntegral, ModelOptimizer, Model, SARSAReplayBuffer
 
 # ros
 import rospy
-from ik_move_velocity_reacher import sawyer_env # reacher
+from sawyer_reacher import sawyer_env # reacher
 # from sawyer_env_ShapeSorter import sawyer_env # shape sorter
 
 """

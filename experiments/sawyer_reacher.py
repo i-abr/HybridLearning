@@ -1,18 +1,6 @@
 #! /usr/bin/env python
-
-# based on Rethink Robotics go_to_cartesian_pose.py
-# Copyright (c) 2016-2018, Rethink Robotics Inc.
-
 """
-Move the robot arm to the new position relative to the prior position specified
-in the topic /puck/relative_move.
-
-Call using:
-$ rosrun sawyer ik_move
-
-Publish position commmands using:
-$ rostopic pub /puck/pose sawyer/RelativeMove "dx: 0.1
-dy: 0."
+imports
 """
 # general
 import numpy as np
@@ -33,7 +21,6 @@ from tf_conversions import transformations
 from intera_core_msgs.srv import SolvePositionIK, SolvePositionIKRequest
 from intera_core_msgs.msg import JointCommand, EndpointState
 from sawyer.msg import RelativeMove, Reward
-# from intera_interface import Limb
 from intera_interface import RobotParams, settings
 import intera_dataflow
 
@@ -68,10 +55,6 @@ class sawyer_env(object):
         _joint_state_sub = rospy.Subscriber('robot/joint_states',JointState,self._on_joint_states,queue_size=1,tcp_nodelay=True)
         _tip_states_sub = rospy.Subscriber('/robot/limb/right/endpoint_state',EndpointState,self._on_tip_states,queue_size=1,tcp_nodelay=True)
 
-        # setup custom ros
-        # rospy.Service('/puck/reset', Trigger, self.reset)
-        # self.reset_sawyer_env = rospy.ServiceProxy('/puck/done', Trigger)
-
         # set up controller
         self.alpha = 0.8 # [0,1]
         self.reset_joint_dict = dict()
@@ -80,13 +63,12 @@ class sawyer_env(object):
         self.delta_theta = deepcopy(self.reset_joint_dict)
 
         # initalize home configuration
-        home_orientation = (-0.464134980767, 0.885626012962, -0.0064449616952, 0.0142740065387)
+        home_orientation_quat = Quaternion(0, 1, 0, 0)
+        home_orientation = (home_orientation_quat.x, home_orientation_quat.y,
+                            home_orientation_quat.z, home_orientation_quat.w)
         self.home_orientation_rpy = np.asarray(transformations.euler_from_quaternion(home_orientation))
-        self.reset_test = False
 
         home_pose = [-0.2, -0.6, 0.0, 1.9, 0.0, 0.3, 1.571]; # straight, reacher
-        # home_pose = [-0.24649609375, -0.5411318359375, -0.3039619140625, 1.901158203125, 0.8013974609375, 0.36883203125, -0.1368642578125] # diagonal, reacher
-        # home_pose = [0.4321650390625, -0.1204091796875, -1.06283984375, 1.6995654296875, 1.5470302734375, 1.049638671875, -0.458474609375]
         self.home_joints = dict(zip(self._joint_names, home_pose))
 
         # wait for first response to joint subscriber
@@ -97,7 +79,6 @@ class sawyer_env(object):
 
         self.raw_command = RelativeMove()
         self.filtered_command = RelativeMove()
-        # rospy.Subscriber('/puck/relative_move',RelativeMove,self.raw_command_callback)
         self.reset_test = True
         print('controller setup complete')
         '''
@@ -112,18 +93,12 @@ class sawyer_env(object):
         # set up tf
         self.got_pose = False
         while (self.got_pose == False):
-            # print('waiting')
             time.sleep(0.2)
 
         self.state = np.zeros(2)
         self.manual_transform()
-        print('sawyer env setup complete')
-        '''
-        start main loop
-        '''
         self.update_velocities()
-
-
+        print('sawyer env setup complete')
 
     '''
     from limb class
@@ -200,15 +175,11 @@ class sawyer_env(object):
     '''
     controller
     '''
-    # def raw_command_callback(self,_data):
-    #     self.raw_command = _data
-
     def ee_vel_to_joint_vel(self,_data,orientation):
         # calculate jacobian_pseudo_inverse
         data = self.clip_velocities(_data)
 
         jacobian_ps = self.py_kdl.jacobian_pseudo_inverse(joint_values=None)
-        # print(jacobian_ps)
 
         xdot = np.zeros(6)
         xdot[0] = data.dx
@@ -293,11 +264,6 @@ class sawyer_env(object):
         return limb_joints
 
     def update_velocities(self):
-        # delta_theta_raw = dict()
-        # joint_velocities = dict()
-
-        # rate=rospy.Rate(10)
-        # while not rospy.is_shutdown():
         if self.reset_test == True:
             # move up
             vertical_joints = self.move_up()
@@ -313,28 +279,17 @@ class sawyer_env(object):
             # reset parameters
             # self.delta_theta = deepcopy(self.reset_joint_dict)
             self.desired_theta_dot = deepcopy(self.reset_joint_dict)  # copy(self.home_joints)
-            print("Reset Pose")
-
-            self.reset_test = False
             self.raw_command = RelativeMove()
             self.filtered_command = RelativeMove()
+            self.reset_test = False
+            print("Reset Pose")
 
-        # print('update_velocities loop',self.raw_command)
         raw_orientation_correction = self.check_orientation()
         self.filtered_command.dx = self.alpha*self.filtered_command.dx+(1-self.alpha)*self.raw_command.dx
         self.filtered_command.dy = self.alpha*self.filtered_command.dy+(1-self.alpha)*self.raw_command.dy
         self.filtered_command.dz = self.alpha*self.filtered_command.dz+(1-self.alpha)*self.raw_command.dz
-        # self.filtered_orientation = self.alpha*self.filtered_orientation+(1-self.alpha)*raw_orientation_correction
         self.ee_vel_to_joint_vel(self.filtered_command,raw_orientation_correction*.25)
         self.set_joint_velocities(self.desired_theta_dot)
-        # print('update_velocities loop',self.state)
-        # rate.sleep()
-
-    # def reset(self,req):
-    #     self.reset_test = True
-    #     while (self.reset_test == True):
-    #         time.sleep(0.1)
-    #     return TriggerResponse(success=True, message="Done callback complete")
 
     '''
     sawery_env
@@ -366,8 +321,7 @@ class sawyer_env(object):
     def reset(self):
         self.reset_test = True
         self.update_velocities()
-        while (self.reset_test == True):
-            time.sleep(0.1)
+        o = raw_input("Press enter to continue")
         self.manual_transform()
         return self.state.copy()
 
@@ -404,14 +358,3 @@ class sawyer_env(object):
         self.reset_test = True
         print('manual done called')
         return TriggerResponse(success=True,message="Done callback complete")
-
-# def main():
-#     rospy.init_node('ik_move')
-#     test = sawyer_env()
-#     rospy.spin()
-#
-# if __name__ == '__main__':
-#     try:
-#         main()
-#     except rospy.ROSInterruptException:
-#         pass
