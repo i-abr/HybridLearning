@@ -34,7 +34,7 @@ class sawyer_env(object):
         # set up sawyer
         self.tip_name = "right_hand"
         self._tip_states = None
-        _tip_states_sub = rospy.Subscriber('/robot/limb/right/tip_states',EndpointStates,self._on_tip_states,queue_size=1,tcp_nodelay=True)
+        _tip_states_sub = rospy.Subscriber('/robot/limb/right/endpoint_state',EndpointState,self._on_tip_states,queue_size=1,tcp_nodelay=True)
         limb = "right"
         self.gripper = Gripper(limb + '_gripper')
 
@@ -49,24 +49,18 @@ class sawyer_env(object):
 
     def _on_tip_states(self, msg):
         self.got_pose = True
-        self._tip_states = deepcopy(msg).states[self._tip_states.names.index("right_hand")]]
-
-    # def tip_state(self, tip_name):
-    #     try:
-    #         return deepcopy(self._tip_states.states[self._tip_states.names.index(tip_name)])
-    #     except ValueError:
-    #         return None
+        self._tip_states = deepcopy(msg)
 
     def update_state(self):
         target = np.zeros(9)
-        # target[0:3] = np.array([0.636175521396, -0.0225218216069, 0.14]) # (distance) [x,y,z], trapezoid
-        # target[0:3] = np.array([0.608951905342, 0.0370819526536, 0.1436]) # diamond
-        # target[0:3] = np.array([ 0.618630950525, 0.0360745993657, 0.142493648115])
         target[0:3] = np.array([0.618718108914, 0.0361612427719, 0.143426261079])
+
         c_tip_state = copy(self._tip_states)
+
         ee = np.array([c_tip_state.pose.position.x, c_tip_state.pose.position.y, c_tip_state.pose.position.z,
                        c_tip_state.wrench.force.x,  c_tip_state.wrench.force.y,  c_tip_state.wrench.force.z,
                        c_tip_state.wrench.torque.x, c_tip_state.wrench.torque.y, c_tip_state.wrench.torque.z])
+
         self.state = ee-target
 
     def reset(self):
@@ -102,7 +96,7 @@ class sawyer_env(object):
 
         next_reward = Reward()
         next_reward.reward = reward
-        next_reward.distance = np.sqrt(-reward)
+        next_reward.distance = reward
         self.reward.publish(next_reward)
 
         return self.state.copy(), reward, done
@@ -122,7 +116,7 @@ class sawyer_env(object):
         thresh = 0.032
 
         # reward = -distance-l2norm
-        reward = -l2norm
+        reward = -distance
         # reward += -torque*1e-6
         # reward += -force*1e-6
 

@@ -26,8 +26,8 @@ from hltlib import PathIntegral, ModelOptimizer, Model, SARSAReplayBuffer
 
 # ros
 import rospy
-# from sawyer_env import sawyer_env # reacher
-from sawyer_env_ShapeSorter import sawyer_env # shape sorter
+from sawyer_env import sawyer_env # reacher
+# from sawyer_env_ShapeSorter import sawyer_env # shape sorter
 
 """
 arg parse things
@@ -38,9 +38,9 @@ parser.add_argument('--max_steps',  type=int,   default=500)
 parser.add_argument('--max_frames', type=int,   default=3000)
 # parser.add_argument('--frame_skip', type=int,   default=2)
 parser.add_argument('--model_lr',   type=float, default=3e-3)
-parser.add_argument('--policy_lr',  type=float, default=3e-3)
-parser.add_argument('--value_lr',   type=float, default=3e-4)
-parser.add_argument('--soft_q_lr',  type=float, default=3e-4)
+parser.add_argument('--policy_lr',  type=float, default=0.01) #3e-3)
+parser.add_argument('--value_lr',   type=float, default=0.01) #3e-4)
+parser.add_argument('--soft_q_lr',  type=float, default=0.01) #3e-4)
 
 parser.add_argument('--horizon', type=int, default=5)
 parser.add_argument('--model_iter', type=int, default=2)
@@ -60,13 +60,13 @@ if __name__ == '__main__':
         now = datetime.now()
         date_str = now.strftime("%Y-%m-%d_%H-%M-%S/")
 
-        path = './data/' + env_name +  '/' + 'h_sac/' + date_str
-        # path = './data/' + env_name +  '/' + 'sac/' + date_str # policy only
+        # path = './data/' + env_name +  '/' + 'h_sac/' + date_str
+        path = './data/' + env_name +  '/' + 'sac/' + date_str # policy only
         if os.path.exists(path) is False:
             os.makedirs(path)
 
-        action_dim = 3
-        state_dim  = 9 #4
+        action_dim = 2 # 2 (reacher), 3 (shape sorter)
+        state_dim  = 4 # 4 (reacher), 9 (shape sorter)
         hidden_dim = 128
 
         policy_net = PolicyNetwork(state_dim, action_dim, hidden_dim)
@@ -106,8 +106,8 @@ if __name__ == '__main__':
             state = env.reset()
             planner.reset()
 
-            action = planner(state.copy())
-            # action = policy_net.get_action(state.copy()) # policy only
+            # action = planner(state.copy())
+            action = policy_net.get_action(state.copy()) # policy only
 
             episode_reward = 0
             episode_success = 0
@@ -120,7 +120,8 @@ if __name__ == '__main__':
                     os._exit(0)
                 next_state, reward, done = env.step(action.copy())
 
-                next_action = planner(next_state.copy())
+                next_action = policy_net.get_action(next_state.copy())
+                # next_action = planner(next_state.copy())
 
                 replay_buffer.push(state, action, reward, next_state, done)
                 model_replay_buffer.push(state, action, reward, next_state, next_action, done)

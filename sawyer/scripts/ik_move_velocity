@@ -26,14 +26,14 @@ from geometry_msgs.msg import PoseStamped, Pose, Quaternion
 from std_msgs.msg import Header, Float64
 from sensor_msgs.msg import JointState
 from std_srvs.srv import Trigger, TriggerResponse
-from tf_conversions import transformations # , posemath # for relative pose movements...
+from tf_conversions import transformations
 
 # sawyer
 from intera_core_msgs.srv import SolvePositionIK, SolvePositionIKRequest
-from intera_core_msgs.msg import JointCommand, EndpointState,EndpointStates, CollisionDetectionState
+from intera_core_msgs.msg import JointCommand, EndpointState
 from sawyer.msg import RelativeMove
 # from intera_interface import Limb
-from intera_interface import RobotParams, settings, Gripper
+from intera_interface import RobotParams, settings
 import intera_dataflow
 
 # pykdl
@@ -42,77 +42,54 @@ from sawyer_pykdl import sawyer_kinematics
 class go_to_pose(object):
     def __init__(self):
         # set up ik solver
-        limb = "right"
-        self.tip_name = "right_hand"
-        ns = "ExternalTools/" + limb + "/PositionKinematicsNode/IKService"
-        self.iksvc = rospy.ServiceProxy(ns, SolvePositionIK)
-        rospy.wait_for_service(ns, 5.0)
+        self.iksvc = rospy.ServiceProxy("ExternalTools/right/PositionKinematicsNode/IKService", SolvePositionIK)
+        rospy.wait_for_service("ExternalTools/right/PositionKinematicsNode/IKService", 5.0)
 
         # set up py_kdl
-        self.py_kdl = sawyer_kinematics(limb)
+        self.py_kdl = sawyer_kinematics("right")
 
         # set up sawyer (ijn place of limb class)
-        ns_cmd = '/robot/limb/' + limb + '/'
-        params = RobotParams()
-        self.joint_names = params.get_joint_names(limb)
+        self._joint_names = RobotParams().get_joint_names("right")
         self._joint_angle = dict()
         self._joint_velocity = dict()
-        self._joint_effort = dict()
-        self._joint_names = self.joint_names
+        # self._joint_effort = dict()
         self._tip_states = None
-        self._collision_state = False
 
-        self._pub_speed_ratio = rospy.Publisher(ns_cmd + 'set_speed_ratio', Float64, latch=True, queue_size=1)
         # self._command_msg = JointCommand()
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            self._pub_joint_cmd = rospy.Publisher(ns_cmd + 'joint_command',JointCommand,tcp_nodelay=True,queue_size=1)
-        self._pub_joint_cmd_timeout = rospy.Publisher(ns_cmd + 'joint_command_timeout',Float64,latch=True,queue_size=1)
+            self._pub_joint_cmd = rospy.Publisher('/robot/limb/right/joint_command',JointCommand,tcp_nodelay=True,queue_size=1)
+        self._pub_joint_cmd_timeout = rospy.Publisher('/robot/limb/right/joint_command_timeout',Float64,latch=True,queue_size=1)
+        self._pub_speed_ratio = rospy.Publisher('/robot/limb/right/set_speed_ratio', Float64, latch=True, queue_size=1)
         _joint_state_sub = rospy.Subscriber('robot/joint_states',JointState,self._on_joint_states,queue_size=1,tcp_nodelay=True)
-        _tip_states_sub = rospy.Subscriber(ns_cmd + 'tip_states',EndpointStates,self._on_tip_states,queue_size=1,tcp_nodelay=True)
-        _collision_state_sub = rospy.Subscriber(ns_cmd + 'collision_detection_state',CollisionDetectionState,self._on_collision_state,queue_size=1,tcp_nodelay=True)
+        _tip_states_sub = rospy.Subscriber('/robot/limb/right/endpoint_state',EndpointState,self._on_tip_states,queue_size=1,tcp_nodelay=True)
 
         # setup custom ros
         rospy.Service('/puck/reset', Trigger, self.reset)
         self.reset_sawyer_env = rospy.ServiceProxy('/puck/done', Trigger)
 
         # set up controller
-        self.c = 0.5
         self.alpha = 0.8 # [0,1]
-        self.reset_theta = dict()
-        for name in self.joint_names:
-            self.reset_theta[name] = 0.0
-        self.delta_theta = deepcopy(self.reset_theta)
+        self.reset_joint_dict = dict()
+        for name in self._joint_names:
+            self.reset_joint_dict[name] = 0.0
+        self.delta_theta = deepcopy(self.reset_joint_dict)
 
         # initalize home configuration
-        # home_orientation = Quaternion(0, 1, 0, 0)
-        # quaternion = (home_orientation.x, home_orientation.y,
-        #               home_orientation.z, home_orientation.w)
-        # home_orientation = (-0.0788724680665, 0.996802985705, 7.87196274824e-05, 0.0127646101787) # trapezoid
-        # home_orientation = (-0.495795469411, 0.868382424738, 0.00768893118336, -0.00630057572268) # diamond
         home_orientation = (-0.464134980767, 0.885626012962, -0.0064449616952, 0.0142740065387)
-
         self.home_orientation_rpy = np.asarray(transformations.euler_from_quaternion(home_orientation))
-        # self.filtered_orientation = np.zeros(3)
         self.reset_arm = False
 
         # home_pose = [-0.2, -0.6, 0.0, 1.9, 0.0, 0.3, 1.571]; # straight, reacher
         # home_pose = [-0.24649609375, -0.5411318359375, -0.3039619140625, 1.901158203125, 0.8013974609375, 0.36883203125, -0.1368642578125] # diagonal, reacher
-        # home_pose = [-0.271728515625, -0.5496796875, -0.2440283203125, 1.94983984375, 0.7148427734375, 0.308125, -0.38069921875] # diagonal, reacher
-        # home_pose = [ 0.053275390625, -0.3608935546875, -0.439890625, 1.6846865234375, 1.010955078125, 0.504203125, -0.299798828125] # middle, reacher
-        # home_pose = [0.4487978515625, -0.199642578125, -1.056333984375, 1.7263115234375, 1.4568603515625, 1.0072783203125, 0.5674404296875] # above toy sorter
-        # home_pose = [0.4357548828125, -0.1204091796875, -1.06370703125, 1.6705107421875, 1.5042177734375, 1.042654296875, 0.5639287109375] #  above toy sorter, trapezoid
-        # home_pose = [0.4079306640625, -0.107732421875, -1.0937724609375, 1.654755859375, 1.4440654296875, 1.11873828125, -0.47580078125] # diamond
         home_pose = [0.4321650390625, -0.1204091796875, -1.06283984375, 1.6995654296875, 1.5470302734375, 1.049638671875, -0.458474609375]
-
-        self.home_joints = dict(zip(self.joint_names, home_pose))
+        self.home_joints = dict(zip(self._joint_names, home_pose))
 
         # wait for first response to joint subscriber
         self.got_joints = False
         while (self.got_joints == False):
-            # print('waiting')
             time.sleep(0.2)
-        self.desired_theta_dot = deepcopy(self.reset_theta)
+        self.desired_theta_dot = deepcopy(self.reset_joint_dict)
 
         self.raw_command = RelativeMove()
         self.filtered_command = RelativeMove()
@@ -129,26 +106,13 @@ class go_to_pose(object):
             if name in self._joint_names:
                 self._joint_angle[name] = msg.position[idx]
                 self._joint_velocity[name] = msg.velocity[idx]
-                self._joint_effort[name] = msg.effort[idx]
+                # self._joint_effort[name] = msg.effort[idx]
 
     def joint_angles(self):
         return deepcopy(self._joint_angle)
 
     def _on_tip_states(self, msg):
         self._tip_states = deepcopy(msg)
-
-    def tip_state(self, tip_name):
-        try:
-            return deepcopy(self._tip_states.states[self._tip_states.names.index(tip_name)])
-        except ValueError:
-            return None
-
-    def _on_collision_state(self, msg):
-        if self._collision_state != msg.collision_state:
-            self._collision_state = msg.collision_state
-
-    def has_collided(self):
-        return self._collision_state
 
     def set_joint_positions(self, positions):
         _command_msg = JointCommand()
@@ -222,8 +186,6 @@ class go_to_pose(object):
         self.raw_command = _data
 
     def ee_vel_to_joint_vel(self,_data,orientation):
-        # current_pose = self.joint_angles() # get current state
-        # print(current_pose.values())
         # calculate jacobian_pseudo_inverse
         data = self.clip_velocities(_data)
 
@@ -234,30 +196,24 @@ class go_to_pose(object):
         xdot[0] = data.dx
         xdot[1] = data.dy
         xdot[2] = data.dz
-        xdot[3] = orientation[0]
-        xdot[4] = orientation[1]
-        xdot[5] = orientation[2]
+        # xdot[3] = orientation[0]
+        # xdot[4] = orientation[1]
+        # xdot[5] = orientation[2]
 
         desired_theta_dot = np.matmul(jacobian_ps,xdot)
 
-        for i in range(len(self.joint_names)):
-            self.desired_theta_dot[self.joint_names[i]] = desired_theta_dot[0,i]
+        for i in range(len(self._joint_names)):
+            self.desired_theta_dot[self._joint_names[i]] = desired_theta_dot[0,i]
 
         # print(self.desired_theta_dot)
 
     def check_orientation(self):
-        current_orientation = self.tip_state(self.tip_name).pose.orientation
+        current_orientation = self._tip_states.pose.orientation
         quaternion = (current_orientation.x, current_orientation.y,
                       current_orientation.z, current_orientation.w)
         current_orientation_rpy = np.asarray(transformations.euler_from_quaternion(quaternion))
         correction = current_orientation_rpy-self.home_orientation_rpy
         correction[2] *= -1
-        # print('current')
-        # print(current_orientation_rpy)
-        # print('home')
-        # print(self.home_orientation_rpy)
-        # print('correction')
-        # print(correction)
         for i in range(3):
             if correction[i] < -np.pi:
                 correction[i] += 2*np.pi
@@ -284,8 +240,8 @@ class go_to_pose(object):
                 time.sleep(2)
 
                 # reset parameters
-                # self.delta_theta = deepcopy(self.reset_theta)
-                self.desired_theta_dot = deepcopy(self.reset_theta)  # copy(self.home_joints)
+                # self.delta_theta = deepcopy(self.reset_joint_dict)
+                self.desired_theta_dot = deepcopy(self.reset_joint_dict)  # copy(self.home_joints)
                 rospy.loginfo("Reset Pose")
 
                 self.reset_arm = False
@@ -316,17 +272,19 @@ class go_to_pose(object):
         max_z = 0.3
         min_z = 0 #0.1445
 
-        if (self.tip_state(self.tip_name).pose.position.x > max_x):
+        current_pose = deepcopy(self._tip_states)
+
+        if (current_pose.pose.position.x > max_x):
             action.dx = np.clip(action.dx, -1,0)
-        elif (self.tip_state(self.tip_name).pose.position.x < min_x):
+        elif (current_pose.pose.position.x < min_x):
             action.dx = np.clip(action.dx, 0,1)
-        if (self.tip_state(self.tip_name).pose.position.y > max_y):
+        if (current_pose.pose.position.y > max_y):
             action.dy = np.clip(action.dy, -1,0)
-        elif(self.tip_state(self.tip_name).pose.position.y < min_y):
+        elif(current_pose.pose.position.y < min_y):
             action.dy = np.clip(action.dy, 0,1)
-        if (self.tip_state(self.tip_name).pose.position.z > max_z):
+        if (current_pose.pose.position.z > max_z):
             action.dz = np.clip(action.dz, -1,0)
-        elif(self.tip_state(self.tip_name).pose.position.z < min_z):
+        elif(current_pose.pose.position.z < min_z):
             action.dz = np.clip(action.dz, 0,1)
 
         return action
@@ -335,7 +293,7 @@ class go_to_pose(object):
         # solve inverse kinematics
         ikreq = SolvePositionIKRequest()
 
-        current_pose = self.tip_state(self.tip_name).pose # get current state
+        current_pose = self._tip_states.pose # get current state
 
         pose = current_pose
         pose.position.z += 0.06

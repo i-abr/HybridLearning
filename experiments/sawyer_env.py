@@ -34,7 +34,7 @@ class sawyer_env(object):
         # set up sawyer
         self.tip_name = "right_hand"
         self._tip_states = None
-        _tip_states_sub = rospy.Subscriber('/robot/limb/right/tip_states',EndpointStates,self._on_tip_states,queue_size=1,tcp_nodelay=True)
+        _tip_states_sub = rospy.Subscriber('/robot/limb/right/endpoint_state',EndpointState,self._on_tip_states,queue_size=1,tcp_nodelay=True)
 
         # set up tf
         # self.state = self.setup_transforms()
@@ -50,21 +50,15 @@ class sawyer_env(object):
         self.got_pose = True
         self._tip_states = deepcopy(msg)
 
-    def tip_state(self, tip_name):
-        try:
-            return deepcopy(self._tip_states.states[self._tip_states.names.index(tip_name)])
-        except ValueError:
-            return None
-
     def manual_transform(self):
         target = np.array([0.797359776117, 0.179709323582]) # [x,y]
-        ee = np.array([self.tip_state(self.tip_name).pose.position.x, self.tip_state(self.tip_name).pose.position.y])
+        ee = np.array([self._tip_states.pose.position.x, self._tip_states.pose.position.y])
         self.state = ee-target
 
     def hybrid_transform(self):
         # check tf transform by comparing to hard coded
         target = np.array([0.797359776117, 0.179709323582]) # [x,y]
-        ee = np.array([self.tip_state(self.tip_name).pose.position.x, self.tip_state(self.tip_name).pose.position.y])
+        ee = np.array([self._tip_states.pose.position.x, self._tip_states.pose.position.y])
         ee_transform_hc = ee-target
         print(ee_transform_hc)
 
