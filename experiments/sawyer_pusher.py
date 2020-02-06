@@ -343,8 +343,8 @@ class sawyer_env(object):
         reward += -targetToArm*1.25
 
         if (block_to_target < thresh):
-            done = True
-            reward += 10
+            # done = True
+            # reward += 10
             print('Reached goal!')
 
         next_reward = Reward()
@@ -378,6 +378,7 @@ class sawyer_env(object):
             # get new state
             self.get_transforms()
             reward, done = self.reward_function()
+            reward -= np.sum(_a**2)*0.01
         else:
             done = True
             reward, _ = self.reward_function()

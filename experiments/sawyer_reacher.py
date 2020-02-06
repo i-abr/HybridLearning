@@ -297,7 +297,7 @@ class sawyer_env(object):
     '''
 
     def manual_transform(self):
-        target = np.array([0.689820427198, 0.084937881183]) # [x,y]
+        target = np.array([0.63227896205, -0.0151947757403]) # [x,y]
         ee = np.array([self._tip_states.pose.position.x, self._tip_states.pose.position.y])
         self.state = (ee-target)*10
 
@@ -313,7 +313,7 @@ class sawyer_env(object):
         reward += -block_to_Arm
 
         if (block_to_Arm < thresh):
-            # done = True
+            done = True
             # reward += 10
             print('Reached goal!')
 
@@ -342,6 +342,7 @@ class sawyer_env(object):
             # get new state
             self.manual_transform()
             reward, done = self.reward_function()
+            reward -= np.sum(_a**2)*0.01
         else:
             done = True
             reward, _ = self.reward_function()

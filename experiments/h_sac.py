@@ -34,18 +34,18 @@ arg parse things
 """
 parser = argparse.ArgumentParser()
 # parser.add_argument('--env',        type=str,   help=envs.getlist())
-parser.add_argument('--max_steps',  type=int,   default=500)
+parser.add_argument('--max_steps',  type=int,   default=200)
 parser.add_argument('--max_frames', type=int,   default=3000)
 # parser.add_argument('--frame_skip', type=int,   default=2)
 parser.add_argument('--model_lr',   type=float, default=3e-3)
-parser.add_argument('--policy_lr',  type=float, default=0.001) #3e-3)
-parser.add_argument('--value_lr',   type=float, default=0.001) #3e-4)
-parser.add_argument('--soft_q_lr',  type=float, default=0.001) #3e-4)
+parser.add_argument('--policy_lr',  type=float, default=3e-3)
+parser.add_argument('--value_lr',   type=float, default=3e-4)
+parser.add_argument('--soft_q_lr',  type=float, default=3e-4)
 
 parser.add_argument('--horizon', type=int, default=10)
 parser.add_argument('--model_iter', type=int, default=2)
 parser.add_argument('--trajectory_samples', type=int, default=20)
-parser.add_argument('--lam',  type=float, default=0.1)
+parser.add_argument('--lam',  type=float, default=0.01)
 
 
 args = parser.parse_args()
@@ -58,7 +58,7 @@ if __name__ == '__main__':
 
         env_name = 'sawyer'
         now = datetime.now()
-        date_str = now.strftime("%Y-%m-%d_%H-%M-%S/")
+        date_str = now.strftime("%Y-%m-%d_%H-%M-%S_reacher/")
 
         path = './data/' + env_name +  '/' + 'h_sac/' + date_str
         # path = './data/' + env_name +  '/' + 'sac/' + date_str # policy only
@@ -105,8 +105,8 @@ if __name__ == '__main__':
         while frame_idx < max_frames:
             state = env.reset()
             planner.reset()
-            # action = planner(state.copy())
-            action = policy_net.get_action(state.copy()) # policy only
+            action = planner(state.copy())
+            # action = policy_net.get_action(state.copy()) # policy only
             episode_reward = 0
             episode_success = 0
             for step in range(max_steps):
@@ -118,15 +118,12 @@ if __name__ == '__main__':
                     os._exit(0)
                 next_state, reward, done = env.step(action.copy())
 
-                next_action = policy_net.get_action(next_state.copy())
-                # next_action = planner(next_state.copy())
+                # next_action = policy_net.get_action(next_state.copy())
+                next_action = planner(next_state.copy())
 
                 replay_buffer.push(state, action, reward, next_state, done)
                 model_replay_buffer.push(state, action, reward, next_state, next_action, done)
 
-                if len(replay_buffer) > batch_size:
-                    sac.soft_q_update(batch_size, verbose=False)
-                    model_optim.update_model(batch_size, mini_iter=args.model_iter, verbose=False)
                 print(frame_idx,ep_num)
                 # print(next_state, state)
                 state = next_state.copy()
@@ -147,6 +144,10 @@ if __name__ == '__main__':
             rewards.append([frame_idx, episode_reward])
             success.append([frame_idx, ep_num, episode_success,reward])
             ep_num += 1
+            if len(replay_buffer) > batch_size:
+                for _ in range(100):
+                    sac.soft_q_update(batch_size)
+                    model_optim.update_model(batch_size, mini_iter=args.model_iter, verbose=False)
         print('saving final data set')
         print(success)
         print(rewards)
