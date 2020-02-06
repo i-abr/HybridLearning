@@ -26,7 +26,7 @@ from hltlib import PathIntegral, ModelOptimizer, Model, SARSAReplayBuffer
 
 # ros
 import rospy
-from sawyer_env import sawyer_env # reacher
+from ik_move_velocity_reacher import sawyer_env # reacher
 # from sawyer_env_ShapeSorter import sawyer_env # shape sorter
 
 """
@@ -66,7 +66,7 @@ if __name__ == '__main__':
             os.makedirs(path)
 
         action_dim = 2 # 2 (reacher), 3 (shape sorter)
-        state_dim  = 4 # 4 (reacher), 9 (shape sorter)
+        state_dim  = 2 # 4 (reacher), 9 (shape sorter)
         hidden_dim = 128
 
         policy_net = PolicyNetwork(state_dim, action_dim, hidden_dim)
@@ -103,12 +103,14 @@ if __name__ == '__main__':
         rate=rospy.Rate(10)
 
         while frame_idx < max_frames:
+            print('h_sac > reset environment')
             state = env.reset()
+            print('h_sac > get state', state)
             planner.reset()
-
+            print('h_sac > get action')
             # action = planner(state.copy())
             action = policy_net.get_action(state.copy()) # policy only
-
+            print('h_sac > got action', action)
             episode_reward = 0
             episode_success = 0
             for step in range(max_steps):
@@ -140,7 +142,7 @@ if __name__ == '__main__':
                 #     print('pickle elapsed time', start_time)
                 if done:
                     episode_success = 1
-                    print('done loop')
+                    print('done loop')desired_theta_dot
                     break
                 else:
                     rate.sleep()

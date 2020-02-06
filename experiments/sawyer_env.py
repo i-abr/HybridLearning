@@ -12,7 +12,7 @@ from copy import copy, deepcopy
 # ros
 import rospy
 import tf
-from geometry_msgs.msg import Pose2D
+# from geometry_msgs.msg import Pose2D
 from std_srvs.srv import Trigger, TriggerResponse
 
 # sawyer
