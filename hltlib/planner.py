@@ -17,6 +17,8 @@ class PathIntegral(object):
 
         self.a = torch.zeros(t_H, self.num_actions)
 
+        self.eps = Normal(torch.zeros(self.samples, self.num_actions), torch.ones(self.samples, self.num_actions)*0.2)
+
     def reset(self):
         self.a.zero_()
 
@@ -34,12 +36,15 @@ class PathIntegral(object):
             da = []
             log_prob = []
             for t in range(self.t_H):
-                pi = Normal(mu, log_std.exp())
-                v = pi.sample()
-                log_prob.append(pi.log_prob(self.a[t].expand_as(v)).sum(1))
+                # pi = Normal(mu, log_std.exp())
+                # v = pi.sample()
+                # log_prob.append(pi.log_prob(self.a[t].expand_as(v)).sum(1))
                 # log_prob.append(pi.log_prob(v).sum(1))
-                da.append(v - self.a[t].expand_as(v))
+                # da.append(v - self.a[t].expand_as(v))
                 # da.append(v)
+                eps = self.eps.sample()
+                da.append(eps)
+                v = self.a[t].expand_as(eps) + eps
                 s, rew = self.model.step(s, v)
                 mu, log_std = self.policy(s)
                 sk.append(rew.squeeze())
@@ -49,11 +54,11 @@ class PathIntegral(object):
 
             sk = sk - torch.max(sk, dim=1, keepdim=True)[0]
             # sk /= torch.norm(sk, dim=1, keepdim=True)
-            log_prob = torch.stack(log_prob)
-            log_prob -= torch.max(log_prob, dim=1, keepdim=True)[0]
+            # log_prob = torch.stack(log_prob)
+            # log_prob -= torch.max(log_prob, dim=1, keepdim=True)[0]
             # log_prob /= (torch.norm(log_prob,dim=1, keepdim=True) + 1e-4)
 
-            w = torch.exp(sk.div(self.lam) + log_prob) + 1e-5
+            w = torch.exp(sk.div(self.lam))+1e-5 # + log_prob) + 1e-5
             w.div_(torch.sum(w, dim=1, keepdim=True))
 
             for t in range(self.t_H):
