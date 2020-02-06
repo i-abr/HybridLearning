@@ -48,12 +48,8 @@ class SoftActorCritic(object):
                             mean_lambda = 1e-3,
                             std_lambda  = 1e-3,
                             z_lambda    = 0.0,
-                            soft_tau    = 1e-2,
-                            verbose     = False
+                            soft_tau    = 1e-2
                       ):
-        if batch_size > len(self.replay_buffer):
-            batch_size = len(self.replay_buffer)
-
         state, action, reward, next_state, done = self.replay_buffer.sample(batch_size)
 
         state      = torch.FloatTensor(state)
@@ -106,8 +102,3 @@ class SoftActorCritic(object):
         self.log['q_value_loss'].append(q_value_loss.item())
         self.log['value_loss'].append(value_loss.item())
         self.log['policy_loss'].append(policy_loss.item())
-
-        if verbose:
-            print('q value loss', self.log['q_value_loss'][-1],
-                    'value luss', self.log['value_loss'][-1],
-                    'policy_loss', self.log['policy_loss'][-1])
