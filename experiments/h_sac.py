@@ -62,8 +62,8 @@ if __name__ == '__main__':
         now = datetime.now()
         date_str = now.strftime("%Y-%m-%d_%H-%M-%S_pusher/")
 
-        # path = './data/' + env_name +  '/' + 'h_sac/' + date_str
-        path = './data/' + env_name +  '/' + 'sac/' + date_str # policy only
+        path = './data/' + env_name +  '/' + 'h_sac/' + date_str
+        # path = './data/' + env_name +  '/' + 'sac/' + date_str # policy only
         if os.path.exists(path) is False:
             os.makedirs(path)
 
@@ -107,8 +107,8 @@ if __name__ == '__main__':
         while frame_idx < max_frames:
             state = env.reset()
             planner.reset()
-            # action = planner(state.copy())
-            action = policy_net.get_action(state.copy()) # policy only
+            action = planner(state.copy())
+            # action = policy_net.get_action(state.copy()) # policy only
             episode_reward = 0
             episode_success = 0
             for step in range(max_steps):
@@ -120,8 +120,8 @@ if __name__ == '__main__':
                     os._exit(0)
                 next_state, reward, done = env.step(action.copy())
 
-                next_action = policy_net.get_action(next_state.copy())
-                # next_action = planner(next_state.copy())
+                # next_action = policy_net.get_action(next_state.copy())
+                next_action = planner(next_state.copy())
 
                 replay_buffer.push(state, action, reward, next_state, done)
                 model_replay_buffer.push(state, action, reward, next_state, next_action, done)
