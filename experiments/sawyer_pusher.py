@@ -79,7 +79,7 @@ class sawyer_env(object):
 
         self.raw_command = RelativeMove()
         self.filtered_command = RelativeMove()
-        self.reset_test = True
+        self.reset_test = False
         print('controller setup complete')
         '''
         sawyer_env
@@ -185,9 +185,9 @@ class sawyer_env(object):
         xdot[0] = data.dx
         xdot[1] = data.dy
         xdot[2] = data.dz
-        xdot[3] = orientation[0]
-        xdot[4] = orientation[1]
-        xdot[5] = orientation[2]
+        # xdot[3] = orientation[0]
+        # xdot[4] = orientation[1]
+        # xdot[5] = orientation[2]
 
         desired_theta_dot = np.matmul(jacobian_ps,xdot)
 
@@ -296,10 +296,10 @@ class sawyer_env(object):
     '''
 
     def setup_transforms(self):
-        target_transform = self.setup_transform_between_frames( 'target','top')
-        ee_transform = self.setup_transform_between_frames('target','ee')
+        ee_transform, _ = self.listener.lookupTransform( 'ee','top', rospy.Time(0))
+        target_transform, _ = self.listener.lookupTransform( 'target','top', rospy.Time(0))
         try:
-            self.state = np.array([ee_transform[0],ee_transform[1],target_transform[0],target_transform[1]])
+            self.state = np.array([ee_transform[0],ee_transform[1],target_transform[0],target_transform[1]])*10
         except:
             print("Check that all april tags are visible")
 
@@ -321,35 +321,35 @@ class sawyer_env(object):
     def get_transforms(self):
         lookups = ['top', 'block1','block2','block3','block4']
         try:
-            ee_transform, _ = self.listener.lookupTransform( 'target','ee', rospy.Time(0))
+            ee_transform, _ = self.listener.lookupTransform( 'ee',lookups[0], rospy.Time(0))
             target_transform, _ = self.listener.lookupTransform( 'target',lookups[0], rospy.Time(0))
-            self.state = np.array([ee_transform[0],ee_transform[1],target_transform[0],target_transform[1]])
+            self.state = np.array([ee_transform[0],ee_transform[1],target_transform[0],target_transform[1]])*10
         except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
             print('no transform')
             pass
 
     def reward_function(self):
-        [dx_targetToArm, dy_targetToArm, dx_targetToBlock, dy_targetToBlock] = self.state.copy()
+        [dx_ArmToBlock, dy_ArmToBlock, dx_BlockToTarget, dy_BlockToTarget] = self.state.copy()
 
-        block_to_target = np.sqrt((dx_targetToArm-dx_targetToBlock)**2+
-                        (dy_targetToArm-dy_targetToBlock)**2)
-        targetToArm = np.sqrt((dx_targetToArm)**2+(dy_targetToArm)**2)
+        block_to_target = np.sqrt(dx_BlockToTarget**2+dy_BlockToTarget**2)
+        arm_to_block = np.sqrt(   dx_ArmToBlock**2 +dy_ArmToBlock**2)
 
         reward = 0
         done = False
-        thresh = 0.08
+        thresh = 0.5
 
-        reward += -block_to_target
-        reward += -targetToArm*1.25
+        reward += -block_to_target*.5
+        reward += -arm_to_block
 
         if (block_to_target < thresh):
-            # done = True
+            done = True
             # reward += 10
             print('Reached goal!')
 
         next_reward = Reward()
         next_reward.reward = reward
-        next_reward.distance = block_to_target
+        next_reward.distance1 = block_to_target
+        next_reward.distance2 = arm_to_block
         self.reward.publish(next_reward)
 
         return reward, done
@@ -364,7 +364,7 @@ class sawyer_env(object):
     def step(self, _a):
         if (self.reset_test == False):
             # theta = (np.pi/4)*np.clip(_a[2],-1,1)  # keep april tags in view
-            action = 0.4*np.clip(_a, -1,1)
+            action = 0.1*np.clip(_a, -1,1)
             # publish action input
             pose = RelativeMove()
             pose.dx = action[0]

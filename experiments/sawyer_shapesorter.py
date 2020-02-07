@@ -21,7 +21,7 @@ from tf_conversions import transformations
 from intera_core_msgs.srv import SolvePositionIK, SolvePositionIKRequest
 from intera_core_msgs.msg import JointCommand, EndpointState
 from sawyer.msg import RelativeMove, Reward
-from intera_interface import RobotParams, settings
+from intera_interface import RobotParams, settings, Gripper
 import intera_dataflow
 
 # pykdl
@@ -45,6 +45,7 @@ class sawyer_env(object):
         self._joint_velocity = dict()
         # self._joint_effort = dict()
         self._tip_states = None
+        self.gripper = Gripper('right_gripper')
 
         # self._command_msg = JointCommand()
         with warnings.catch_warnings():
@@ -77,7 +78,7 @@ class sawyer_env(object):
 
         self.raw_command = RelativeMove()
         self.filtered_command = RelativeMove()
-        self.reset_test = True
+        self.reset_test = False
         print('controller setup complete')
         '''
         sawyer_env
