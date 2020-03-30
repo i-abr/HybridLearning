@@ -23,14 +23,10 @@ class StochPolicyWrapper(object):
         with torch.no_grad():
             self.a[:-1] = self.a[1:].clone()
             self.a[-1].zero_()
-
-
             s0 = torch.FloatTensor(state).unsqueeze(0)
             s = s0.repeat(self.samples, 1)
             mu, log_std = self.policy(s)
-            sk = []
-            da = []
-            log_prob = []
+            sk, da, log_prob = [], [], []
             for t in range(self.t_H):
                 pi = Normal(mu, log_std.exp())
                 v = pi.sample()
@@ -47,7 +43,7 @@ class StochPolicyWrapper(object):
 
             log_prob = torch.stack(log_prob)
 
-            sk = sk.div(self.lam) + log_prob
+            sk = sk + self.lam*log_prob
             # sk = sk - torch.min(sk, dim=1, keepdim=True)[0]
             sk = sk - torch.max(sk, dim=1, keepdim=True)[0]
 
