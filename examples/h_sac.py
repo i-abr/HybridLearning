@@ -14,7 +14,7 @@ from sac_lib import SoftActorCritic
 from sac_lib import PolicyNetwork
 from sac_lib import ReplayBuffer
 from sac_lib import NormalizedActions
-from hybrid_stochastic import PathIntegral
+from hlt_lib import StochPolicyWrapper
 from model import ModelOptimizer, Model, SARSAReplayBuffer
 
 import argparse
@@ -127,7 +127,7 @@ if __name__ == '__main__':
                           value_lr=args.value_lr,
                           soft_q_lr=args.soft_q_lr)
 
-    planner = PathIntegral(model, policy_net, samples=args.trajectory_samples, t_H=args.horizon, lam=args.lam)
+    hybrid_policy = StochPolicyWrapper(model, policy_net, samples=args.trajectory_samples, t_H=args.horizon, lam=args.lam)
 
     max_frames  = args.max_frames
     max_steps   = args.max_steps
@@ -141,9 +141,9 @@ if __name__ == '__main__':
     ep_num = 0
     while frame_idx < max_frames:
         state = env.reset()
-        planner.reset()
+        hybrid_policy.reset()
 
-        action = planner(state)
+        action = hybrid_policy(state)
 
         episode_reward = 0
         for step in range(max_steps):
@@ -152,7 +152,7 @@ if __name__ == '__main__':
                 next_state, reward, done, _ = env.step(action.copy())
 
 
-            next_action = planner(next_state)
+            next_action = hybrid_policy(next_state)
 
             replay_buffer.push(state, action, reward, next_state, done)
             model_replay_buffer.push(state, action, reward, next_state, next_action, done)
