@@ -44,11 +44,12 @@ class SoftActorCritic(object):
         self.log = {'value_loss' :[], 'q_value_loss':[], 'policy_loss' :[]}
 
     def soft_q_update(self, batch_size,
-                            gamma       = 0.99,
+                            ent_coef    = 0.05,
+                            gamma       = 0.98,
                             mean_lambda = 1e-3,
                             std_lambda  = 1e-3,
                             z_lambda    = 0.0,
-                            soft_tau    = 1e-2
+                            soft_tau    = 0.01
                       ):
         state, action, reward, next_state, done = self.replay_buffer.sample(batch_size)
 
@@ -62,6 +63,7 @@ class SoftActorCritic(object):
         expected_value   = self.value_net(state)
         new_action, log_prob, z, mean, log_std = self.policy_net.evaluate(state)
 
+        log_prob = log_prob * ent_coef
 
         target_value = self.target_value_net(next_state)
         next_q_value = reward + (1 - done) * gamma * target_value
