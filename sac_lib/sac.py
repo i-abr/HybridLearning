@@ -19,11 +19,16 @@ class SoftActorCritic(object):
                         ):
 
         # set up the networks
-        self.value_net        = ValueNetwork(state_dim, hidden_dim)
-        self.target_value_net = ValueNetwork(state_dim, hidden_dim)
+        device ='cpu'
+        if torch.cuda.is_available():
+            device = 'cuda'
+        self.device = device
+
+        self.value_net        = ValueNetwork(state_dim, hidden_dim).to(device)
+        self.target_value_net = ValueNetwork(state_dim, hidden_dim).to(device)
         self.policy_net       = policy
 
-        self.soft_q_net = SoftQNetwork(state_dim, action_dim, hidden_dim)
+        self.soft_q_net = SoftQNetwork(state_dim, action_dim, hidden_dim).to(device)
 
         # copy the target params over
         for target_param, param in zip(self.target_value_net.parameters(), self.value_net.parameters()):
@@ -53,11 +58,11 @@ class SoftActorCritic(object):
                       ):
         state, action, reward, next_state, done = self.replay_buffer.sample(batch_size)
 
-        state      = torch.FloatTensor(state)
-        next_state = torch.FloatTensor(next_state)
-        action     = torch.FloatTensor(action)
-        reward     = torch.FloatTensor(reward).unsqueeze(1)
-        done       = torch.FloatTensor(np.float32(done)).unsqueeze(1)
+        state      = torch.FloatTensor(state).to(self.device)
+        next_state = torch.FloatTensor(next_state).to(self.device)
+        action     = torch.FloatTensor(action).to(self.device)
+        reward     = torch.FloatTensor(reward).unsqueeze(1).to(self.device)
+        done       = torch.FloatTensor(np.float32(done)).unsqueeze(1).to(self.device)
 
         expected_q_value = self.soft_q_net(state, action)
         expected_value   = self.value_net(state)

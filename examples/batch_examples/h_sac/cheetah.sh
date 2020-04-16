@@ -9,6 +9,7 @@ do
                 --horizon 10 \
                 --frame_skip 4 \
                 --lam 0.2 \
-                --render
+                --model_iter 5 \
+                --no_render
     echo "trial $i out of 2"
 done

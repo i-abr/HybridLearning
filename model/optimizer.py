@@ -22,18 +22,22 @@ class ModelOptimizer(object):
         self._lam = lam
         self.log = {'loss' : [], 'rew_loss': []}
 
+        self.device = 'cpu'
+        if torch.cuda.is_available():
+            self.device = 'cuda'
+
     def update_model(self, batch_size, mini_iter=1):
 
         for k in range(mini_iter):
             states, actions, rewards, next_states, next_action, done = self.replay_buffer.sample(batch_size)
 
-            states = torch.FloatTensor(states)
+            states = torch.FloatTensor(states).to(self.device)
             states.requires_grad = True
-            next_states = torch.FloatTensor(next_states)
-            actions = torch.FloatTensor(actions)
-            next_action = torch.FloatTensor(next_action)
-            rewards = torch.FloatTensor(rewards).unsqueeze(1)
-            done    = torch.FloatTensor(np.float32(done)).unsqueeze(1)
+            next_states = torch.FloatTensor(next_states).to(self.device)
+            actions = torch.FloatTensor(actions).to(self.device)
+            next_action = torch.FloatTensor(next_action).to(self.device)
+            rewards = torch.FloatTensor(rewards).unsqueeze(1).to(self.device)
+            done    = torch.FloatTensor(np.float32(done)).unsqueeze(1).to(self.device)
 
             pred_mean, pred_std, pred_rew = self.model(states, actions)
 
