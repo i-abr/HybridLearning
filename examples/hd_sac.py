@@ -112,7 +112,7 @@ if __name__ == '__main__':
     while frame_idx < max_frames:
         state = env.reset()
         hybrid_policy.reset()
-        action, rho = planner(state)
+        action, rho = hybrid_policy(state)
         episode_reward = 0
         for step in range(max_steps):
             # action = policy_net.get_action(state)
@@ -144,7 +144,7 @@ if __name__ == '__main__':
                 env.render("human")
 
 
-            if frame_idx % int(max_frames/10) == 0:
+            if frame_idx % int(max_frames/10) == 0 and len(rewards) > 0:
                 print(
                     'frame : {}/{}, \t last rew : {}, \t rew loss : {}'.format(
                         frame_idx, max_frames, rewards[-1][1], model_optim.log['rew_loss'][-1]

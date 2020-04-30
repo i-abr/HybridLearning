@@ -118,11 +118,13 @@ if __name__ == '__main__':
         action = hybrid_policy(state)
 
         episode_reward = 0
+        done = False
         for step in range(max_steps):
             # action = policy_net.get_action(state)
+            # reward = 0.
             for _ in range(frame_skip):
                 next_state, reward, done, _ = env.step(action.copy())
-
+                # reward += rew
 
             next_action = hybrid_policy(next_state)
 
@@ -155,10 +157,6 @@ if __name__ == '__main__':
             if args.done_util:
                 if done:
                     break
-        #if len(replay_buffer) > batch_size:
-        #    for k in range(200):
-        #        sac.soft_q_update(batch_size)
-        #        model_optim.update_model(batch_size, mini_iter=1)#args.model_iter)
         if len(replay_buffer) > batch_size:
             print('ep rew', ep_num, episode_reward, model_optim.log['rew_loss'][-1], model_optim.log['loss'][-1])
             print('ssac loss', sac.log['value_loss'][-1], sac.log['policy_loss'][-1], sac.log['q_value_loss'][-1])

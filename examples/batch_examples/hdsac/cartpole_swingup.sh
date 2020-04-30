@@ -7,6 +7,8 @@ do
                 --env 'InvertedPendulumSwingupBulletEnv' \
                 --max_frames 10000 \
                 --frame_skip 4 \
+                --max_steps 1000 \
+                --model_iter 5 \
                 --no_render
     echo "trial $i out of $trials"
 done

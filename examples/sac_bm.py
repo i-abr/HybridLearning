@@ -12,10 +12,10 @@ sys.path.append('../')
 import envs
 
 import torch
-from sac import SoftActorCritic
-from sac import PolicyNetwork
-from sac import ReplayBuffer
-from sac import NormalizedActions
+from sac_lib import SoftActorCritic
+from sac_lib import PolicyNetwork
+from sac_lib import ReplayBuffer
+from sac_lib import NormalizedActions
 
 # argparse things
 import argparse
@@ -104,7 +104,7 @@ if __name__ == '__main__':
 
     frame_idx   = 0
     rewards     = []
-    batch_size  = 128
+    batch_size  = 256
 
     # for _ in range(5):
     #     get_expert_data(env, replay_buffer)
@@ -134,7 +134,7 @@ if __name__ == '__main__':
             if args.render:
                 env.render()
 
-            if frame_idx % int(max_frames/10) == 0:
+            if frame_idx % int(max_frames/10) == 0 and len(rewards) > 0:
                 print(
                     'frame : {}/{}, \t last rew : {}'.format(
                         frame_idx, max_frames, rewards[-1][1]
