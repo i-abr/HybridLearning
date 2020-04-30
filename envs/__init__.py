@@ -3,7 +3,7 @@ from gym.envs import classic_control, box2d, mujoco
 from pybullet_envs.bullet.racecarGymEnv import RacecarGymEnv
 from pybullet_envs.bullet.minitaur_gym_env import MinitaurBulletEnv
 
-from rex_gym.envs.gym.galloping_env import RexReactiveEnv
+# from rex_gym.envs.gym.galloping_env import RexReactiveEnv
 
 env_list = {
     'InvertedPendulumSwingupBulletEnv' : gym_pendulum_envs.InvertedPendulumSwingupBulletEnv,
@@ -14,7 +14,7 @@ env_list = {
     'ReacherBulletEnv' : gym_manipulator_envs.ReacherBulletEnv,
     'PendulumEnv' : classic_control.PendulumEnv,
     'LunarLanderContinuousEnv' : box2d.LunarLanderContinuous,
-    'RexEnv' : RexReactiveEnv
+    # 'RexEnv' : RexReactiveEnv
 }
 
 def getlist():
