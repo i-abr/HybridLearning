@@ -11,6 +11,7 @@ class StochPolicyWrapper(object):
         self.num_actions    = model.num_actions
         self.t_H            = t_H
         self.lam            = lam
+        self.frame_skip     = frame_skip
         self.samples         = samples
 
         self.a = torch.zeros(t_H, self.num_actions)
@@ -22,6 +23,10 @@ class StochPolicyWrapper(object):
 
     def reset(self):
         self.a.zero_()
+
+    def get_next_action(self):
+        with torch.no_grad():
+            return self.a[1].cpu().clone().numpy()
 
     def __call__(self, state):
 
@@ -41,7 +46,10 @@ class StochPolicyWrapper(object):
                 # log_prob.append(pi.log_prob(v).sum(1))
                 da.append(v - self.a[t].expand_as(v))
                 # da.append(v)
-                s, rew = self.model.step(s, v)
+                rew = 0.
+                for _ in range(self.frame_skip):
+                    s, _rew = self.model.step(s, v)
+                    rew += _rew
                 mu, log_std = self.policy(s)
                 sk.append(rew.squeeze())
 
@@ -62,4 +70,4 @@ class StochPolicyWrapper(object):
             for t in range(self.t_H):
                 self.a[t] = self.a[t] + torch.mv(da[t].T, w[t])
                 # self.a[t] = torch.mv(da[t].T, w[t])
-            return self.a[0].cpu().clone().numpy()
+            return self.a[0].cpu().clone().repeat(self.frame_skip, 1).numpy()

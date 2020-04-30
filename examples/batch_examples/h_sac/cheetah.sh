@@ -3,7 +3,7 @@
 for i in {1..1}
 do
     python3 h_sac.py \
-                --env "HalfCheetahEnv" \
+                --env "HalfCheetahBulletEnv" \
                 --max_steps 1000 \
                 --max_frames 40000 \
                 --horizon 10 \

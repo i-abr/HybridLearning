@@ -99,7 +99,9 @@ if __name__ == '__main__':
                           value_lr=args.value_lr,
                           soft_q_lr=args.soft_q_lr)
 
-    hybrid_policy = StochPolicyWrapper(model, policy_net, samples=args.trajectory_samples, t_H=args.horizon, lam=args.lam)
+    hybrid_policy = StochPolicyWrapper(model, policy_net,
+                        samples=args.trajectory_samples, t_H=args.horizon,
+                        lam=args.lam, frame_skip=args.frame_skip)
 
     max_frames  = args.max_frames
     max_steps   = args.max_steps
@@ -115,29 +117,31 @@ if __name__ == '__main__':
         state = env.reset()
         hybrid_policy.reset()
 
-        action = hybrid_policy(state)
 
         episode_reward = 0
         done = False
-        for step in range(max_steps):
-            # action = policy_net.get_action(state)
-            # reward = 0.
-            for _ in range(frame_skip):
+        for step in range(max_steps//frame_skip):
+
+            actions = hybrid_policy(state)
+            cnt = 0
+            for action, next_action in zip(actions[:-1], actions[1:]):
                 next_state, reward, done, _ = env.step(action.copy())
-                # reward += rew
+                replay_buffer.push(state, action, reward, next_state, done)
+                model_replay_buffer.push(state, action, reward, next_state, next_action, done)
+                state = next_state
+                episode_reward += reward
 
-            next_action = hybrid_policy(next_state)
-
+            action = actions[-1]
+            next_state, reward, done, _ = env.step(action.copy())
             replay_buffer.push(state, action, reward, next_state, done)
             model_replay_buffer.push(state, action, reward, next_state, next_action, done)
+            state = next_state
+            episode_reward += reward
 
             if len(replay_buffer) > batch_size:
-                sac.soft_q_update(batch_size)
+                sac.soft_q_update(batch_size, epochs=frame_skip)
                 model_optim.update_model(batch_size, mini_iter=args.model_iter)
 
-            state = next_state
-            action = next_action
-            episode_reward += reward
             frame_idx += 1
 
             if args.render:
@@ -153,6 +157,7 @@ if __name__ == '__main__':
 
                 pickle.dump(rewards, open(path + 'reward_data' + '.pkl', 'wb'))
                 torch.save(policy_net.state_dict(), path + 'policy_' + str(frame_idx) + '.pt')
+                torch.save(model.state_dict(), path + 'model_' + str(frame_idx) + '.pt')
 
             if args.done_util:
                 if done:

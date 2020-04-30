@@ -52,8 +52,8 @@ class PolicyNetwork(nn.Module):
 
     def get_action(self, state):
         state = torch.FloatTensor(state).unsqueeze(0)
-        # if torch.cuda.is_available():
-        #     state = state.cuda()
+        if torch.cuda.is_available():
+            state = state.cuda()
         mean, log_std = self.forward(state)
         std = log_std.exp()
 

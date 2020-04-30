@@ -85,7 +85,11 @@ if __name__ == '__main__':
     state_dim  = env.observation_space.shape[0]
     hidden_dim = 128
 
-    policy_net = PolicyNetwork(state_dim, action_dim, hidden_dim)
+    device ='cpu'
+    if torch.cuda.is_available():
+        device  = 'cuda'
+        print('Using GPU Accel')
+    policy_net = PolicyNetwork(state_dim, action_dim, hidden_dim).to(device)
 
     replay_buffer_size = 1000000
     replay_buffer = ReplayBuffer(replay_buffer_size)
@@ -114,21 +118,22 @@ if __name__ == '__main__':
         state = env.reset()
         episode_reward = 0
 
-        for step in range(max_steps):
+        for step in range(max_steps//frame_skip):
             action = policy_net.get_action(state)
 
             for _ in range(frame_skip):
                 next_state, reward, done, _ = env.step(action.copy())
 
-            replay_buffer.push(state, action, reward, next_state, done)
+                replay_buffer.push(state, action, reward, next_state, done)
+                state = next_state
 
+                episode_reward += reward
 
             if len(replay_buffer) > batch_size:
-                sac.soft_q_update(batch_size)
+                sac.soft_q_update(batch_size, epochs=frame_skip)
 
 
             state = next_state
-            episode_reward += reward
             frame_idx += 1
 
             if args.render:

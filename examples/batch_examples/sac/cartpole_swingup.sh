@@ -8,6 +8,6 @@ do
                 --max_frames 20000 \
                 --frame_skip 4 \
                 --max_steps 1000 \
-                --no_render
+                --render
     echo "trial $i out of $trials"
 done
