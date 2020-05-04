@@ -5,6 +5,9 @@ import torch.optim as optim
 import torch.nn.functional as F
 from torch.distributions import Normal
 
+
+_device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
 class PolicyNetwork(nn.Module):
     def __init__(self, num_inputs, num_actions, hidden_size, init_w=3e-3, log_std_min=-20, log_std_max=2):
         super(PolicyNetwork, self).__init__()
@@ -41,7 +44,7 @@ class PolicyNetwork(nn.Module):
         std = log_std.exp()
 
         normal = Normal(mean, std)
-        z = normal.sample()
+        z = normal.rsample()
         action = torch.tanh(z)
 
         log_prob = normal.log_prob(z) - torch.log(1 - action.pow(2) + epsilon)
@@ -51,9 +54,7 @@ class PolicyNetwork(nn.Module):
 
 
     def get_action(self, state):
-        state = torch.FloatTensor(state).unsqueeze(0)
-        # if torch.cuda.is_available():
-        #     state = state.cuda()
+        state = torch.FloatTensor(state).unsqueeze(0).to(_device)
         mean, log_std = self.forward(state)
         std = log_std.exp()
 

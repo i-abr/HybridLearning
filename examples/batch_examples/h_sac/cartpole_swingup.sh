@@ -1,6 +1,6 @@
 #!/bin/zsh
 
-trials=2
+trials=4
 for i in {1..$trials}
 do
     python3 h_sac.py \
