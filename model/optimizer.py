@@ -46,6 +46,7 @@ class ModelOptimizer(object):
             # df = jacobian(pred_mean, states)
 
             next_vals = self.model.reward_fun(torch.cat([next_states, next_action], axis=1))
+            # _, _, next_vals = self.model(next_states, next_action)
 
             rew_loss = torch.mean(torch.pow((rewards+self._lam*(1-done)*next_vals).detach() - pred_rew,2))
             # rew_loss = torch.mean(torch.pow(rewards - pred_rew,2))

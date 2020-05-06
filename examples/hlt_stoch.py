@@ -1,4 +1,5 @@
 import numpy as np
+import random
 import pickle
 from datetime import datetime
 
@@ -29,6 +30,8 @@ parser.add_argument('--policy_lr',  type=float, default=3e-4)
 parser.add_argument('--value_lr',   type=float, default=3e-4)
 parser.add_argument('--soft_q_lr',  type=float, default=3e-4)
 
+parser.add_argument('--seed', type=int, default=666)
+
 parser.add_argument('--horizon', type=int, default=5)
 parser.add_argument('--model_iter', type=int, default=2)
 parser.add_argument('--trajectory_samples', type=int, default=60)
@@ -55,9 +58,15 @@ if __name__ == '__main__':
     except TypeError as err:
         print('no argument render,  assumping env.render will just work')
         env = NormalizedActions(envs.env_list[env_name]())
+    assert np.any(np.abs(env.action_space.low) <= 1.) and  np.any(np.abs(env.action_space.high) <= 1.), 'Action space not normalizd'
     env.reset()
 
-    assert np.any(np.abs(env.action_space.low) <= 1.) and  np.any(np.abs(env.action_space.high) <= 1.), 'Action space not normalizd'
+    env.seed(args.seed)
+    np.random.seed(args.seed)
+    random.seed(args.seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    torch.manual_seed(args.seed)
 
 
     now = datetime.now()
@@ -73,7 +82,7 @@ if __name__ == '__main__':
 
     device ='cpu'
     if torch.cuda.is_available():
-        device  = 'cuda'
+        device  = 'cuda:0'
         print('Using GPU Accel')
 
     policy_net = PolicyNetwork(state_dim, action_dim, hidden_dim).to(device)
@@ -109,7 +118,6 @@ if __name__ == '__main__':
     rewards     = []
     batch_size  = 256
 
-    # env.camera_adjust()
     ep_num = 0
     while frame_idx < max_frames:
         state = env.reset()
@@ -120,11 +128,8 @@ if __name__ == '__main__':
         episode_reward = 0
         done = False
         for step in range(max_steps):
-            # action = policy_net.get_action(state)
-            # reward = 0.
             for _ in range(frame_skip):
                 next_state, reward, done, _ = env.step(action.copy())
-                # reward += rew
 
             next_action = hybrid_policy(next_state)
 
@@ -132,7 +137,7 @@ if __name__ == '__main__':
             model_replay_buffer.push(state, action, reward, next_state, next_action, done)
 
             if len(replay_buffer) > batch_size:
-                sac.soft_q_update(batch_size)
+                sac.update(batch_size)
                 model_optim.update_model(batch_size, mini_iter=args.model_iter)
 
             state = next_state
@@ -144,24 +149,26 @@ if __name__ == '__main__':
                 env.render("human")
 
 
-            if frame_idx % int(max_frames/10) == 0 and len(rewards) > 0:
+            if frame_idx % (max_frames//10) == 0:
+                last_reward = rewards[-1][1] if len(rewards)>0 else 0
                 print(
-                    'frame : {}/{}, \t last rew : {}, \t rew loss : {}'.format(
-                        frame_idx, max_frames, rewards[-1][1], model_optim.log['rew_loss'][-1]
+                    'frame : {}/{}, \t last rew: {}'.format(
+                        frame_idx, max_frames, last_reward
                     )
                 )
 
                 pickle.dump(rewards, open(path + 'reward_data' + '.pkl', 'wb'))
                 torch.save(policy_net.state_dict(), path + 'policy_' + str(frame_idx) + '.pt')
+                torch.save(model.state_dict(), path + 'model_' + str(frame_idx) + '.pt')
 
             if args.done_util:
                 if done:
                     break
         if len(replay_buffer) > batch_size:
-            print('ep rew', ep_num, episode_reward, model_optim.log['rew_loss'][-1], model_optim.log['loss'][-1])
-            print('ssac loss', sac.log['value_loss'][-1], sac.log['policy_loss'][-1], sac.log['q_value_loss'][-1])
+            print('ep rew', ep_num, episode_reward)
         rewards.append([frame_idx, episode_reward])
         ep_num += 1
     print('saving final data set')
     pickle.dump(rewards, open(path + 'reward_data'+ '.pkl', 'wb'))
     torch.save(policy_net.state_dict(), path + 'policy_' + 'final' + '.pt')
+    torch.save(model.state_dict(), path + 'model_' + 'final' + '.pt')

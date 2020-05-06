@@ -1,13 +1,12 @@
 #!/bin/zsh
 
-for seed in 0 1 42 666 1234
+trials=2
+for i in {1..$trials}
 do
-    python3 sac.py \
+    python3 h_sac.py \
                 --env 'InvertedPendulumSwingupBulletEnv' \
-                --max_frames 20000 \
+                --max_frames 10000 \
                 --frame_skip 4 \
-                --max_steps 1000 \
-                --seed $seed \
                 --no_render
     echo "trial $i out of $trials"
 done

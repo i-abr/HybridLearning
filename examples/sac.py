@@ -1,4 +1,5 @@
 import numpy as np
+import random
 import pickle
 import gym
 from datetime import datetime
@@ -29,7 +30,7 @@ parser.add_argument('--policy_lr',  type=float, default=3e-4)
 parser.add_argument('--value_lr',   type=float, default=3e-4)
 parser.add_argument('--soft_q_lr',  type=float, default=3e-4)
 
-
+parser.add_argument('--seed', type=int, default=666)
 
 parser.add_argument('--done_util', dest='done_util', action='store_true')
 parser.add_argument('--no_done_util', dest='done_util', action='store_false')
@@ -55,24 +56,22 @@ def get_expert_data(env, replay_buffer, T=200):
 
 if __name__ == '__main__':
 
-    # env_name = 'ReacherBulletEnv-v0'
-
-    # env_name = 'KukaBulletEnv-v0'
-    # env_name = 'InvertedPendulumSwingupBulletEnv-v0'
-    # env = pybullet_envs.make(env_name)
-    # env = pybullet_envs.make(env_name)
-    # env = KukaGymEnv(renders=True, isDiscrete=False)
-
     env_name = args.env
-    print(args.render)
     try:
-        env = envs.env_list[env_name](render=args.render)
+        env = NormalizedActions(envs.env_list[env_name](render=args.render))
     except TypeError as err:
         print('no argument render,  assumping env.render will just work')
-        env = envs.env_list[env_name]()
-    env.reset()
-    print(env.action_space.low, env.action_space.high)
+        env = NormalizedActions(envs.env_list[env_name]())
     assert np.any(np.abs(env.action_space.low) <= 1.) and  np.any(np.abs(env.action_space.high) <= 1.), 'Action space not normalizd'
+    env.reset()
+
+    env.seed(args.seed)
+    np.random.seed(args.seed)
+    random.seed(args.seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    torch.manual_seed(args.seed)
+
 
     now = datetime.now()
     date_str = now.strftime("%Y-%m-%d_%H-%M-%S/")
@@ -85,7 +84,12 @@ if __name__ == '__main__':
     state_dim  = env.observation_space.shape[0]
     hidden_dim = 128
 
-    policy_net = PolicyNetwork(state_dim, action_dim, hidden_dim)
+    device ='cpu'
+    if torch.cuda.is_available():
+        device  = 'cuda:0'
+        print('Using GPU Accel')
+
+    policy_net = PolicyNetwork(state_dim, action_dim, hidden_dim).to(device)
 
     replay_buffer_size = 1000000
     replay_buffer = ReplayBuffer(replay_buffer_size)
@@ -106,9 +110,6 @@ if __name__ == '__main__':
     rewards     = []
     batch_size  = 256
 
-    # for _ in range(5):
-    #     get_expert_data(env, replay_buffer)
-    # env. render('human')
     ep_num = 0
     while frame_idx < max_frames:
         state = env.reset()
@@ -124,7 +125,7 @@ if __name__ == '__main__':
 
 
             if len(replay_buffer) > batch_size:
-                sac.soft_q_update(batch_size)
+                sac.update(batch_size)
 
 
             state = next_state
@@ -132,14 +133,17 @@ if __name__ == '__main__':
             frame_idx += 1
 
             if args.render:
-                env.render()
+                env.render("human")
 
-            if frame_idx % int(max_frames/10) == 0 and len(rewards) > 0:
+
+            if frame_idx % (max_frames//10) == 0:
+                last_reward = rewards[-1][1] if len(rewards)>0 else 0
                 print(
-                    'frame : {}/{}, \t last rew : {}'.format(
-                        frame_idx, max_frames, rewards[-1][1]
+                    'frame : {}/{}, \t last rew: {}'.format(
+                        frame_idx, max_frames, last_reward
                     )
                 )
+
                 pickle.dump(rewards, open(path + 'reward_data' + '.pkl', 'wb'))
                 torch.save(policy_net.state_dict(), path + 'policy_' + str(frame_idx) + '.pt')
 

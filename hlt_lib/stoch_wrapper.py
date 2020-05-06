@@ -28,15 +28,13 @@ class StochPolicyWrapper(object):
         with torch.no_grad():
             self.a[:-1] = self.a[1:].clone()
             self.a[-1].zero_()
-            s0 = torch.FloatTensor(state).unsqueeze(0)
-            if torch.cuda.is_available():
-                s0 = s0.to('cuda')
+            s0 = torch.FloatTensor(state).unsqueeze(0).to(self.device)
             s = s0.repeat(self.samples, 1)
             mu, log_std = self.policy(s)
             sk, da, log_prob = [], [], []
             for t in range(self.t_H):
                 pi = Normal(mu, log_std.exp())
-                v = pi.sample()
+                v = torch.tanh(pi.sample())
                 log_prob.append(pi.log_prob(self.a[t].expand_as(v)).sum(1))
                 # log_prob.append(pi.log_prob(v).sum(1))
                 da.append(v - self.a[t].expand_as(v))
