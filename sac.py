@@ -63,13 +63,12 @@ if __name__ == '__main__':
     torch.manual_seed(args.seed)
 
 
-    if args.log:
-        now = datetime.now()
-        date_str = now.strftime("%Y-%m-%d_%H-%M-%S/")
+    now = datetime.now()
+    date_str = now.strftime("%Y-%m-%d_%H-%M-%S/")
 
-        path = './data/' + 'sac/' + env_name +  '/' + date_str
-        if os.path.exists(path) is False:
-            os.makedirs(path)
+    path = './data/' + env_name +  '/' 'sac/' + date_str
+    if os.path.exists(path) is False:
+        os.makedirs(path)
 
     action_dim = env.action_space.shape[0]
     state_dim  = env.observation_space.shape[0]
