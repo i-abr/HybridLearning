@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/bin/sh
 
 for seed in 0 1 42 666 1234
 do

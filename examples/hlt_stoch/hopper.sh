@@ -1,7 +1,8 @@
-#!/bin/zsh
+#!/bin/sh
 
 for seed in 0 1 42 666 1234
 do
+    echo "trial $seed"
     python3 hlt_stoch.py \
                 --env "HopperBulletEnv" \
                 --max_steps 2000 \
@@ -9,6 +10,6 @@ do
                 --horizon 10 \
                 --frame_skip 4 \
                 --seed $seed \
+		--log \
                 --no_render
-    echo "trial $i out of 2"
 done

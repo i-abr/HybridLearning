@@ -5,7 +5,6 @@ from datetime import datetime
 
 import sys
 import os
-sys.path.append('../')
 
 # local imports
 import envs
@@ -42,6 +41,10 @@ parser.add_argument('--done_util', dest='done_util', action='store_true')
 parser.add_argument('--no_done_util', dest='done_util', action='store_false')
 parser.set_defaults(done_util=True)
 
+parser.add_argument('--log', dest='log', action='store_true')
+parser.add_argument('--no-log', dest='log', action='store_false')
+parser.set_defaults(done_util=False)
+
 parser.add_argument('--render', dest='render', action='store_true')
 parser.add_argument('--no_render', dest='render', action='store_false')
 parser.set_defaults(render=False)
@@ -68,13 +71,13 @@ if __name__ == '__main__':
     torch.backends.cudnn.benchmark = False
     torch.manual_seed(args.seed)
 
+    if args.log:
+        now = datetime.now()
+        date_str = now.strftime("%Y-%m-%d_%H-%M-%S/")
 
-    now = datetime.now()
-    date_str = now.strftime("%Y-%m-%d_%H-%M-%S/")
-
-    path = './data/' + env_name +  '/' + 'h_sac/' + date_str
-    if os.path.exists(path) is False:
-        os.makedirs(path)
+        path = './data/' + 'hlt_stoch/' + env_name +  '/' + date_str
+        if os.path.exists(path) is False:
+            os.makedirs(path)
 
     action_dim = env.action_space.shape[0]
     state_dim  = env.observation_space.shape[0]
@@ -156,10 +159,11 @@ if __name__ == '__main__':
                         frame_idx, max_frames, last_reward
                     )
                 )
-
-                pickle.dump(rewards, open(path + 'reward_data' + '.pkl', 'wb'))
-                torch.save(policy_net.state_dict(), path + 'policy_' + str(frame_idx) + '.pt')
-                torch.save(model.state_dict(), path + 'model_' + str(frame_idx) + '.pt')
+                if args.log:
+                    print('saving model and reward log')
+                    pickle.dump(rewards, open(path + 'reward_data' + '.pkl', 'wb'))
+                    torch.save(policy_net.state_dict(), path + 'policy_' + str(frame_idx) + '.pt')
+                    torch.save(model.state_dict(), path + 'model_' + str(frame_idx) + '.pt')
 
             if args.done_util:
                 if done:
@@ -168,7 +172,8 @@ if __name__ == '__main__':
             print('ep rew', ep_num, episode_reward)
         rewards.append([frame_idx, episode_reward])
         ep_num += 1
-    print('saving final data set')
-    pickle.dump(rewards, open(path + 'reward_data'+ '.pkl', 'wb'))
-    torch.save(policy_net.state_dict(), path + 'policy_' + 'final' + '.pt')
-    torch.save(model.state_dict(), path + 'model_' + 'final' + '.pt')
+    if args.log:
+        print('saving final data set')
+        pickle.dump(rewards, open(path + 'reward_data'+ '.pkl', 'wb'))
+        torch.save(policy_net.state_dict(), path + 'policy_' + 'final' + '.pt')
+        torch.save(model.state_dict(), path + 'model_' + 'final' + '.pt')

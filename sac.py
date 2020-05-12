@@ -27,6 +27,7 @@ parser.add_argument('--frame_skip', type=int,   default=2)
 parser.add_argument('--policy_lr',  type=float, default=3e-4)
 parser.add_argument('--value_lr',   type=float, default=3e-4)
 parser.add_argument('--soft_q_lr',  type=float, default=3e-4)
+parser.add_argument('--reward_scale',  type=float, default=1.)
 
 parser.add_argument('--seed', type=int, default=666)
 
@@ -111,7 +112,7 @@ if __name__ == '__main__':
             for _ in range(frame_skip):
                 next_state, reward, done, _ = env.step(action.copy())
 
-            replay_buffer.push(state, action, reward, next_state, done)
+            replay_buffer.push(state, action, args.reward_scale*reward, next_state, done)
 
 
             if len(replay_buffer) > batch_size:

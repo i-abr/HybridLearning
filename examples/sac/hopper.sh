@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/bin/sh
 
 for seed in 0 1 42 666 1234
 do
@@ -8,6 +8,7 @@ do
             --max_frames 80000 \
             --frame_skip 4 \
             --seed $seed \
+	    --log \
             --no_render
     echo "trial $i out of 2"
 done
