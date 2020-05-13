@@ -10,5 +10,6 @@ do
                 --frame_skip 5 \
                 --seed $seed \
 		--reward_scale 10 \
+		--log \
                 --no_render
 done

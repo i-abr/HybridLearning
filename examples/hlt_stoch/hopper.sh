@@ -6,7 +6,7 @@ do
     python3 hlt_stoch.py \
                 --env "HopperBulletEnv" \
                 --max_steps 2000 \
-                --max_frames 20000 \
+                --max_frames 80000 \
                 --horizon 10 \
                 --frame_skip 4 \
                 --seed $seed \

@@ -28,6 +28,7 @@ parser.add_argument('--model_lr',   type=float, default=3e-4)
 parser.add_argument('--policy_lr',  type=float, default=3e-4)
 parser.add_argument('--value_lr',   type=float, default=3e-4)
 parser.add_argument('--soft_q_lr',  type=float, default=3e-4)
+parser.add_argument('--reward_scale',  type=float, default=1.)
 
 parser.add_argument('--seed', type=int, default=666)
 
@@ -43,7 +44,7 @@ parser.set_defaults(done_util=True)
 
 parser.add_argument('--log', dest='log', action='store_true')
 parser.add_argument('--no-log', dest='log', action='store_false')
-parser.set_defaults(done_util=False)
+parser.set_defaults(log=False)
 
 parser.add_argument('--render', dest='render', action='store_true')
 parser.add_argument('--no_render', dest='render', action='store_false')
@@ -75,7 +76,7 @@ if __name__ == '__main__':
         now = datetime.now()
         date_str = now.strftime("%Y-%m-%d_%H-%M-%S/")
 
-        path = './data/' + 'hlt_stoch/' + env_name +  '/' + date_str
+        path = './data/' + env_name + '/' + 'hlt_stoch/' + date_str
         if os.path.exists(path) is False:
             os.makedirs(path)
 
@@ -136,8 +137,8 @@ if __name__ == '__main__':
 
             next_action = hybrid_policy(next_state)
 
-            replay_buffer.push(state, action, reward, next_state, done)
-            model_replay_buffer.push(state, action, reward, next_state, next_action, done)
+            replay_buffer.push(state, action, args.reward_scale * reward, next_state, done)
+            model_replay_buffer.push(state, action, args.reward_scale * reward, next_state, next_action, done)
 
             if len(replay_buffer) > batch_size:
                 sac.update(batch_size)

@@ -11,6 +11,7 @@ do
                 --horizon 10 \
                 --frame_skip 5 \
                 --lam 0.1 \
+		--reward_scale 10 \
                 --seed $seed \
 		--log \
                 --no_render
