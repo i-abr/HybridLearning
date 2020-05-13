@@ -106,7 +106,9 @@ if __name__ == '__main__':
                                 t_H=config['horizon'],
                                 lam=config['lam'])
     elif config['method'] == 'hlt_deter':
-        hybrid_policy = DetPolicyWrapper(model, policy_net, T=config['horizon'])
+        hybrid_policy = DetPolicyWrapper(model, policy_net,
+                                        T=config['horizon'],
+                                        lr=config['planner_lr'])
     else:
         ValueError('method not found in config')
 
