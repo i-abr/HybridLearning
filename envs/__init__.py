@@ -6,7 +6,7 @@ from pybullet_envs.bullet.minitaur_gym_env import MinitaurBulletEnv
 # from rex_gym.envs.gym.galloping_env import RexReactiveEnv
 
 env_list = {
-    'InvertedPendulumSwingupBulletEnv' : gym_pendulum_envs.InvertedPendulumSwingupBulletEnv,
+    'InvertedPendulumBulletEnv' : gym_pendulum_envs.InvertedPendulumSwingupBulletEnv,
     'HalfCheetahBulletEnv' : gym_locomotion_envs.HalfCheetahBulletEnv,
     'HopperBulletEnv' : gym_locomotion_envs.HopperBulletEnv,
     'AntBulletEnv' : gym_locomotion_envs.AntBulletEnv,

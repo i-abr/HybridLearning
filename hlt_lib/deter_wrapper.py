@@ -4,10 +4,11 @@ from torch.autograd import Variable
 from torch.autograd.gradcheck import zero_gradients
 import torch.nn.functional as F
 from torch.distributions import Normal
+import torch.optim as optim
 
 class DetPolicyWrapper(object):
 
-    def __init__(self, model, policy, T=10, lr=0.02, eps=1e-1, reg=1.0):
+    def __init__(self, model, policy, T=10, lr=0.1, eps=1e-1, reg=1.0):
         self.model = model
         self.policy = policy
         self.T = T
@@ -35,9 +36,11 @@ class DetPolicyWrapper(object):
             s = torch.FloatTensor(state).unsqueeze(0).to(self.device)
             cost = 0.
             for u in self.u:
-                u_t, log_std_t = self.policy(x_t)
-                s, r = self.model.step(s, torch.tanh(u_t + u.unsqueeze(0)))
-                cost = cost - r
+                u_t, log_std_t = self.policy(s)
+                pi = Normal(u_t, log_std_t.exp())
+                u_app = torch.tanh(u_t + u.unsqueeze(0))
+                s, r = self.model.step(s, u_app)
+                cost = cost - r - pi.log_prob(u_app).mean()
             self.optim.zero_grad()
             cost.backward()
             self.optim.step()
