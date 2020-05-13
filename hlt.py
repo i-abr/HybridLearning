@@ -113,7 +113,7 @@ if __name__ == '__main__':
     max_frames  = config['max_frames']
     max_steps   = config['max_steps']
     frame_skip  = config['frame_skip']
-
+    reward_scale = config['reward_scale']
     frame_idx   = 0
     rewards     = []
     batch_size  = 256
@@ -127,7 +127,6 @@ if __name__ == '__main__':
 
         episode_reward = 0
         done = False
-        reward_scale = config['reward_scale']
         for step in range(max_steps):
             for _ in range(frame_skip):
                 next_state, reward, done, _ = env.step(action.copy())
