@@ -33,10 +33,7 @@ class Model(nn.Module):
             nn.Linear(def_layers[0], 1)
         )
 
-
-        self.log_std = nn.Parameter(torch.ones(1, num_states) * std)
-
-
+        self.log_std = nn.Parameter(torch.randn(1, num_states) * std)
 
     def forward(self, s, a):
         """
@@ -47,9 +44,9 @@ class Model(nn.Module):
 
         x = self.mu(x)
         # in case I want to update the way the var looks like
-        std = torch.clamp(self.log_std, -20., 2).exp().expand_as(x)
+        std = torch.clamp(self.log_std, -10., 2).exp().expand_as(x)
 
-        return s+x, std, self.reward_fun(torch.cat([s, a], axis=1))
+        return x+s, std, self.reward_fun(torch.cat([s, a], axis=1))
 
     def step(self, x, u):
         mean, std, rew = self.forward(x, u)

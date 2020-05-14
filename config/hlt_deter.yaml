@@ -25,12 +25,12 @@ HopperBulletEnv:
     max_frames: 80000
     max_steps: 2000
     frame_skip: 4
-    horizon: 5
-    planner_lr: 0.01
+    horizon: 10
+    planner_lr: 0.001
 
 HalfCheetahBulletEnv:
     max_frames: 80000
     max_steps: 2000
     frame_skip: 5
-    horizon: 5
-    planner_lr: 0.01
+    horizon: 10
+    planner_lr: 0.001

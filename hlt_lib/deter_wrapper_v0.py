@@ -5,7 +5,6 @@ from torch.autograd.gradcheck import zero_gradients
 import torch.nn.functional as F
 from torch.distributions import Normal
 
-
 def compute_jacobian(inputs, output, create_graph=False):
     """
     :param inputs: Batch X Size (e.g. Depth X Width X Height)
@@ -82,17 +81,17 @@ class DetPolicyWrapper(object):
         with torch.no_grad():
             rho = torch.zeros(1, self.num_states).to(self.device)
             for t in reversed(range(self.T)):
-                # rho = (0.2**(t)) * dldx[t] + rho.mm(dfdx[t])
+                rho = (0.2**(t)) * dldx[t] + rho.mm(dfdx[t])
                 # TODO: add the gamma as part of a parameter
-                rho =  dldx[t] + rho.mm(dfdx[t])
+                # rho =  dldx[t] + rho.mm(dfdx[t])
 
                 # self.u[t] = self.u[t] + (dldu[t] + rho.mm(dfdu[t])) * self.eps
                 # self.u[t] = 2.0* log_std_p[t].exp() * rho.mm(dfdu[t])
             # _u = torch.pow(log_std_p[0].exp(),2) * (rho.mm(dfdu[0]))
             rho = torch.clamp(rho, -1,+1)
             sig = torch.pow(log_std_p[0].exp().unsqueeze(0),2)
-            u_t, log_std_t = self.policy(torch.FloatTensor(state).unsqueeze(0).to(self.device))
-            _u = sig * rho.mm(dfdu[0]) + torch.randn_like(log_std_t) * torch.exp(log_std_t)
+            # u_t, log_std_t = self.policy(torch.FloatTensor(state).unsqueeze(0).to(self.device))
+            _u = sig * rho.mm(dfdu[0]) #+ torch.randn_like(log_std_t) * torch.exp(log_std_t)
 
             #f1,_ = self.model.step(x[0].unsqueeze(0), torch.clamp(torch.tanh(u_p[0].unsqueeze(0)),-1,+1) )
             #f2,_ = self.model.step(x[0].unsqueeze(0), torch.clamp(_u[0]+torch.tanh(u_p[0].unsqueeze(0)),-1,+1))
