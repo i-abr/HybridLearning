@@ -134,7 +134,7 @@ if __name__ == '__main__':
                 next_state, reward, done, _ = env.step(action.copy())
 
             next_action = hybrid_policy(next_state)
-
+            
             replay_buffer.push(state, action, reward, next_state, done)
             model_replay_buffer.push(state, action, reward_scale * reward, next_state, next_action, done)
 

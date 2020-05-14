@@ -35,12 +35,14 @@ class DetPolicyWrapper(object):
         for epoch in range(epochs):
             s = torch.FloatTensor(state).unsqueeze(0).to(self.device)
             cost = 0.
+            t = 0
             for u in self.u:
                 u_t, log_std_t = self.policy(s)
                 pi = Normal(u_t, log_std_t.exp())
-                u_app = torch.tanh(u_t + u.unsqueeze(0))
-                s, r = self.model.step(s, u_app)
+                u_app = u_t + u.unsqueeze(0)# + torch.randn_like(u_t) * torch.exp(log_std_t)
+                s, r = self.model.step(s, torch.clamp(u_app, -1, 1))
                 cost = cost - r - pi.log_prob(u_app).mean()
+                t += 1
             self.optim.zero_grad()
             cost.backward()
             self.optim.step()
@@ -48,7 +50,8 @@ class DetPolicyWrapper(object):
         with torch.no_grad():
             u_t, log_std_t = self.policy(torch.FloatTensor(state).unsqueeze(0).to(self.device))
             v = u_t + torch.randn_like(log_std_t) * torch.exp(log_std_t)
-            u = torch.tanh((v.squeeze() + self.u[0]).cpu().clone()).numpy()
+            # u = torch.tanh((v.squeeze() + self.u[0]).cpu().clone()).numpy()
+            u = torch.clamp(v.squeeze() + self.u[0], -1,1).cpu().clone().numpy()
             self.u[:-1] = self.u[1:].clone()
             self.u[-1].zero_()
             return u
