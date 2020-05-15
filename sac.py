@@ -29,7 +29,7 @@ parser.add_argument('--render', dest='render', action='store_true')
 parser.add_argument('--no_render', dest='render', action='store_false')
 parser.set_defaults(render=True)
 parser.add_argument('--log', dest='log', action='store_true')
-parser.add_argument('--no-log', dest='log', action='store_false')
+parser.add_argument('--no_log', dest='log', action='store_false')
 parser.set_defaults(log=False)
 
 args = parser.parse_args()

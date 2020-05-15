@@ -11,7 +11,7 @@ default:
 InvertedPendulumBulletEnv:
     max_frames: 20000
     frame_skip: 4
-    max_steps: 1000
+    max_steps: 500
 
 HopperBulletEnv:
     max_frames: 50000
