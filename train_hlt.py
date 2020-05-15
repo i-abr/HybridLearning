@@ -172,7 +172,7 @@ if __name__ == '__main__':
                 if done:
                     break
         if len(replay_buffer) > batch_size:
-            print('ep rew', ep_num, episode_reward)
+            print('ep rew', ep_num, episode_reward, frame_idx)
         rewards.append([frame_idx, episode_reward])
         ep_num += 1
     if args.log:

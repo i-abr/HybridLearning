@@ -22,15 +22,15 @@ InvertedPendulumBulletEnv:
     planner_lr: 0.1
 
 HopperBulletEnv:
-    max_frames: 80000
-    max_steps: 2000
+    max_frames: 50000
+    max_steps: 1000
     frame_skip: 4
-    horizon: 10
-    planner_lr: 0.001
+    horizon: 5
+    planner_lr: 0.00001
 
 HalfCheetahBulletEnv:
-    max_frames: 80000
-    max_steps: 2000
+    max_frames: 50000
+    max_steps: 1000
     frame_skip: 5
     horizon: 10
-    planner_lr: 0.001
+    planner_lr: 0.00001

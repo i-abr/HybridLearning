@@ -148,7 +148,7 @@ if __name__ == '__main__':
                 if done:
                     break
 
-        print('ep reward', ep_num, episode_reward)
+        print('ep reward', ep_num, episode_reward, frame_idx)
         ep_num += 1
         rewards.append([frame_idx, episode_reward, ep_num])
 
