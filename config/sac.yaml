@@ -9,7 +9,7 @@ default:
     reward_scale: 1.0
 
 InvertedPendulumBulletEnv:
-    max_frames: 20000
+    max_frames: 10000
     frame_skip: 4
     max_steps: 500
 
