@@ -11,12 +11,11 @@ import yaml
 import envs
 
 import torch
-from sac_lib import SoftActorCritic
-from sac_lib import PolicyNetwork
-from sac_lib import ReplayBuffer
-from sac_lib import NormalizedActions
-from hlt_lib import StochPolicyWrapper, DetPolicyWrapper
-from model import ModelOptimizer, Model, SARSAReplayBuffer
+from hlt_lib import SoftActorCritic
+from hlt_lib import PolicyNetwork
+from hlt_lib import ReplayBuffer
+from hlt_lib import NormalizedActions
+from hlt_lib import StochPolicyWrapper, SoftQNetwork, Model
 
 import argparse
 
@@ -82,35 +81,28 @@ if __name__ == '__main__':
         device  = 'cuda:0'
         print('Using GPU Accel')
 
-    policy_net = PolicyNetwork(state_dim, action_dim, hidden_dim).to(device)
-
-    model = Model(state_dim, action_dim, def_layers=[200]).to(device)
-
+    policy_net  = PolicyNetwork(state_dim, action_dim, hidden_dim).to(device)
+    value_net   = SoftQNetwork(state_dim, action_dim, hidden_dim).to(device)
+    target_value_net   = SoftQNetwork(state_dim, action_dim, hidden_dim).to(device)
+    model       = Model(state_dim, action_dim, def_layers=[200]).to(device)
 
     replay_buffer_size = 1000000
     replay_buffer = ReplayBuffer(replay_buffer_size)
 
-    model_replay_buffer = SARSAReplayBuffer(replay_buffer_size)
-    model_optim = ModelOptimizer(model, model_replay_buffer, lr=config['model_lr'])
-
     sac = SoftActorCritic(policy=policy_net,
+                            model=model,
+                            value=value_net,
+                            target_value=target_value_net,
                           state_dim=state_dim,
                           action_dim=action_dim,
                           replay_buffer=replay_buffer,
                           policy_lr=config['policy_lr'],
-                          value_lr=config['value_lr'],
+                          model_lr=config['model_lr'],
                           soft_q_lr=config['soft_q_lr'])
-    if config['method'] == 'hlt_stoch':
-        hybrid_policy = StochPolicyWrapper(model, policy_net,
-                                samples=config['trajectory_samples'],
-                                t_H=config['horizon'],
-                                lam=config['lam'])
-    elif config['method'] == 'hlt_deter':
-        hybrid_policy = DetPolicyWrapper(model, policy_net,
-                                        T=config['horizon'],
-                                        lr=config['planner_lr'])
-    else:
-        ValueError('method not found in config')
+    hybrid_policy = StochPolicyWrapper(model, policy_net, value_net,
+                            samples=config['trajectory_samples'],
+                            t_H=config['horizon'],
+                            lam=sac.log_ent_coef)
 
     max_frames  = config['max_frames']
     max_steps   = config['max_steps']
@@ -118,36 +110,26 @@ if __name__ == '__main__':
     reward_scale = config['reward_scale']
     frame_idx   = 0
     rewards     = []
-    batch_size  = 256
+    batch_size  = 128
 
     ep_num = 0
     while frame_idx < max_frames:
         state = env.reset()
         hybrid_policy.reset()
 
-        action = hybrid_policy(state)
 
         episode_reward = 0
         done = False
         for step in range(max_steps):
+            action = hybrid_policy(state)
             for _ in range(frame_skip):
                 next_state, reward, done, _ = env.step(action.copy())
 
-            next_action = hybrid_policy(next_state)
-
-            # if config['method'] == 'hlt_deter':
-                # next_action += np.random.normal(0., 1.0*(0.995**(frame_idx+1)), size=(action_dim,))
-                # next_action += np.random.normal(0., 0.1, size=(action_dim,))
-
             replay_buffer.push(state, action, reward, next_state, done)
-            model_replay_buffer.push(state, action, reward_scale * reward, next_state, next_action, done)
 
             if len(replay_buffer) > batch_size:
                 sac.update(batch_size)
-                model_optim.update_model(batch_size, mini_iter=config['model_iter'])
-
             state = next_state
-            action = next_action
             episode_reward += reward
             frame_idx += 1
 

@@ -11,7 +11,7 @@ class Model(nn.Module):
     ### Words of matt; machine teaching
     """
     def __init__(self, num_states, num_actions,
-                 def_layers=[200, 200], std=0.):
+                 def_layers=[200, 200], std=3e-3):
 
         super(Model, self).__init__()
         self.num_states  = num_states
@@ -24,6 +24,7 @@ class Model(nn.Module):
             nn.ReLU(),
             nn.Linear(def_layers[0], num_states)
         )
+
 
         self.log_std = nn.Parameter(torch.randn(1, num_states) * std)
 

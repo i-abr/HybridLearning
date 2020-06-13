@@ -5,15 +5,14 @@ import torch.optim as optim
 import torch.nn.functional as F
 from torch.distributions import Normal
 
-# alg specific imports
-from .softQnetwork import SoftQNetwork
-from .valuenetwork import ValueNetwork
 
 class SoftActorCritic(object):
 
-    def __init__(self, policy, model, state_dim, action_dim, replay_buffer,
+    def __init__(self, policy, model, value, target_value,
+                            state_dim, action_dim, replay_buffer,
                             hidden_dim  = 256,
                             soft_q_lr   = 3e-4,
+                            model_lr    = 3e-4,
                             policy_lr   = 3e-4,
                         ):
 
@@ -24,8 +23,8 @@ class SoftActorCritic(object):
 
         self.policy_net         = policy
         self.model_net          = model
-        self.soft_q_net         = SoftQNetwork(state_dim, action_dim, hidden_dim).to(device)
-        self.target_soft_q_net  = SoftQNetwork(state_dim, action_dim, hidden_dim).to(device)
+        self.soft_q_net         = value
+        self.target_soft_q_net  = target_value
 
 
         # ent coeff
@@ -41,14 +40,15 @@ class SoftActorCritic(object):
         self.soft_q_criterion = nn.MSELoss()
 
         # set the optimizers
-        self.soft_q_optimizer = optim.Adam(self.soft_q_net.parameters(), lr=soft_q_lr)
-        self.policy_optimizer = optim.Adam(self.policy_net.parameters(), lr=policy_lr)
+        self.soft_q_optimizer   = optim.Adam(self.soft_q_net.parameters(), lr=soft_q_lr)
+        self.policy_optimizer   = optim.Adam(self.policy_net.parameters(), lr=policy_lr)
+        self.model_optimizer    = optim.Adam(self.model_net.parameters(), lr=model_lr)
         self.ent_coef_optimizer = optim.Adam([self.log_ent_coef], lr=3e-3)
 
         # reference the replay buffer
         self.replay_buffer = replay_buffer
 
-        self.log = {'entropy_loss' :[], 'q_value_loss':[], 'policy_loss' :[]}
+        self.log = {'entropy_loss' :[], 'q_value_loss':[], 'policy_loss' :[], 'model_loss' : []}
 
 
     def update(self, batch_size,
@@ -98,6 +98,15 @@ class SoftActorCritic(object):
         ent_loss.backward()
         self.ent_coef_optimizer.step()
 
+
+        mu, std = self.model_net(state, action)
+        beta = Normal(mu, std)
+        model_loss = -torch.mean(beta.log_prob(next_state))
+        self.model_optimizer.zero_grad()
+        model_loss.backward()
+        self.model_optimizer.step()
+
+
         for target_param, param in zip(self.target_soft_q_net.parameters(), self.soft_q_net.parameters()):
             target_param.data.copy_(target_param.data * (1.0 - soft_tau) +
                                     param.data * soft_tau)
@@ -105,3 +114,4 @@ class SoftActorCritic(object):
         self.log['q_value_loss'].append(q_value_loss.item())
         self.log['entropy_loss'].append(ent_loss.item())
         self.log['policy_loss'].append(policy_loss.item())
+        self.log['model_loss'].append(model_loss.item())
