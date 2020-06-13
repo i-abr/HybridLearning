@@ -50,12 +50,12 @@ class StochPolicyWrapper(object):
 
             log_prob = torch.stack(log_prob)
 
-            sk = sk + self.lam.exp()*log_prob
+            sk = sk + self.lam*log_prob
             # sk = sk - torch.min(sk, dim=1, keepdim=True)[0]
             sk = sk - torch.max(sk, dim=1, keepdim=True)[0]
             #log_prob -= torch.max(log_prob, dim=1, keepdim=True)[0]
             #w = torch.exp(sk.div(self.lam) + log_prob) + 1e-5
-            w = torch.exp(sk.div(self.lam.exp())) + 1e-5
+            w = torch.exp(sk.div(self.lam)) + 1e-5
             w.div_(torch.sum(w, dim=1, keepdim=True))
             for t in range(self.t_H):
                 self.a[t] = self.a[t] + torch.mv(da[t].T, w[t])

@@ -14,7 +14,7 @@ default:
 
 InvertedPendulumBulletEnv:
     max_frames: 10000
-    frame_skip: 2
+    frame_skip: 4
     max_steps: 500
     lam: 0.1
     model_iter: 5

@@ -102,7 +102,7 @@ if __name__ == '__main__':
     hybrid_policy = StochPolicyWrapper(model, policy_net, value_net,
                             samples=config['trajectory_samples'],
                             t_H=config['horizon'],
-                            lam=sac.log_ent_coef)
+                            lam=config['lam'])
 
     max_frames  = config['max_frames']
     max_steps   = config['max_steps']
