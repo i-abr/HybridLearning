@@ -3,6 +3,13 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Normal
 
+
+class Sin(nn.Module):
+    def __init__(self):
+        super(Sin, self).__init__()
+    def forward(self, x):
+        return torch.sin(x)
+
 class Model(nn.Module):
     """
     Class creates a model for the dynamics system
@@ -18,10 +25,8 @@ class Model(nn.Module):
         self.num_actions = num_actions
 
         self.mu = nn.Sequential(
-            nn.Linear(num_states+num_actions, def_layers[0]),
-            nn.ReLU(),
-            nn.Linear(def_layers[0], def_layers[0]),
-            nn.ReLU(),
+            nn.Linear(num_states+num_actions, def_layers[0]), Sin()
+            nn.Linear(def_layers[0], def_layers[0]), Sin(),
             nn.Linear(def_layers[0], num_states)
         )
 
