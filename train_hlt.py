@@ -100,6 +100,7 @@ if __name__ == '__main__':
                           policy_lr=config['policy_lr'],
                           value_lr=config['value_lr'],
                           soft_q_lr=config['soft_q_lr'])
+
     if config['method'] == 'hlt_stoch':
         hybrid_policy = StochPolicyWrapper(model, policy_net,
                                 samples=config['trajectory_samples'],
@@ -118,7 +119,7 @@ if __name__ == '__main__':
     reward_scale = config['reward_scale']
     frame_idx   = 0
     rewards     = []
-    batch_size  = 256
+    batch_size  = 128
 
     ep_num = 0
     while frame_idx < max_frames:
@@ -134,10 +135,6 @@ if __name__ == '__main__':
                 next_state, reward, done, _ = env.step(action.copy())
 
             next_action = hybrid_policy(next_state)
-
-            # if config['method'] == 'hlt_deter':
-                # next_action += np.random.normal(0., 1.0*(0.995**(frame_idx+1)), size=(action_dim,))
-                # next_action += np.random.normal(0., 0.1, size=(action_dim,))
 
             replay_buffer.push(state, action, reward, next_state, done)
             model_replay_buffer.push(state, action, reward_scale * reward, next_state, next_action, done)

@@ -25,6 +25,7 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('--env',   type=str,   default='InvertedPendulumBulletEnv')
 parser.add_argument('--method', type=str, default='hlt_stoch')
+parser.add_argument('--frame', type=int, default=-1)
 parser.add_argument('--seed', type=int, default=666)
 parser.add_argument('--done_util', dest='done_util', action='store_true')
 parser.add_argument('--no_done_util', dest='done_util', action='store_false')
@@ -84,8 +85,13 @@ if __name__ == '__main__':
 
     state_dict_path = './data/' + config['method'] + '/' + env_name + '/seed_{}/'.format(args.seed)
 
-    policy_net.load_state_dict(torch.load(state_dict_path+'policy_final.pt', map_location=device))
-    model.load_state_dict(torch.load(state_dict_path+'model_final.pt', map_location=device))
+    if args.frame == -1:
+        test_frame = 'final'
+    else:
+        test_frame = args.frame
+
+    policy_net.load_state_dict(torch.load(state_dict_path+'policy_{}.pt'.format(test_frame), map_location=device))
+    model.load_state_dict(torch.load(state_dict_path+'model_{}.pt'.format(test_frame), map_location=device))
 
     if config['method'] == 'hlt_stoch':
         hybrid_policy = StochPolicyWrapper(model, policy_net,

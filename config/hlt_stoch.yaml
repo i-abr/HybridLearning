@@ -13,6 +13,13 @@ default:
     trajectory_samples: 60
     lam: 0.1
 
+PendulumEnv:
+    max_frames: 10000
+    frame_skip: 4
+    max_steps: 200
+    lam: 0.1
+    model_iter: 5
+
 InvertedPendulumBulletEnv:
     max_frames: 10000
     frame_skip: 4

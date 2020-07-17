@@ -36,7 +36,7 @@ class Model(nn.Module):
         """
         _in   = torch.cat([s, a], axis=1)
 
-        x = self.mu(x)
+        x = self.mu(_in)
         # in case I want to update the way the var looks like
         std = torch.clamp(self.log_std, -10., 2).exp().expand_as(x)
 
