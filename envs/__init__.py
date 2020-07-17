@@ -2,7 +2,6 @@ from pybullet_envs import gym_pendulum_envs, gym_manipulator_envs, gym_locomotio
 from gym.envs import classic_control, box2d
 from pybullet_envs.bullet.racecarGymEnv import RacecarGymEnv
 from pybullet_envs.bullet.minitaur_gym_env import MinitaurBulletEnv
-
 # from rex_gym.envs.gym.galloping_env import RexReactiveEnv
 
 env_list = {
