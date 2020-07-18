@@ -33,9 +33,16 @@ HopperBulletEnv:
     frame_skip: 4
     horizon: 10
 
+# HalfCheetahBulletEnv:
+#     max_frames: 50000
+#     max_steps: 1000
+#     frame_skip: 5
+#     lam: 0.5
+#     horizon: 10
+
 HalfCheetahBulletEnv:
     max_frames: 50000
     max_steps: 1000
-    frame_skip: 5
-    lam: 0.1
+    frame_skip: 1
+    lam: 0.01
     horizon: 10

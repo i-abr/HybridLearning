@@ -103,7 +103,7 @@ if __name__ == '__main__':
 
     frame_idx   = 0
     rewards     = []
-    batch_size  = 256
+    batch_size  = 128
 
     ep_num = 0
     while frame_idx < max_frames:

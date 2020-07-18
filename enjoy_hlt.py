@@ -60,7 +60,6 @@ if __name__ == '__main__':
         env = NormalizedActions(envs.env_list[env_name]())
     assert np.any(np.abs(env.action_space.low) <= 1.) and  np.any(np.abs(env.action_space.high) <= 1.), 'Action space not normalizd'
     if args.record:
-
         env = gym.wrappers.Monitor(env, './data/vid/hlt/{}-{}'.format(env_name, args.frame), force=True)
     env.reset()
 
@@ -130,11 +129,12 @@ if __name__ == '__main__':
         frame_idx += 1
 
         if args.render:
-            env.render("human")
+            env.render()
 
         if args.done_util:
             if done:
                 break
     rewards.append([frame_idx, episode_reward])
     ep_num += 1
+    print(episode_reward)
     env.close()

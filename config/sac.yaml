@@ -18,7 +18,11 @@ HopperBulletEnv:
     max_steps: 1000
     frame_skip: 4
 
+# HalfCheetahBulletEnv:
+#     max_frames: 50000
+#     max_steps: 1000
+#     frame_skip: 5
 HalfCheetahBulletEnv:
     max_frames: 50000
     max_steps: 1000
-    frame_skip: 5
+    frame_skip: 1
