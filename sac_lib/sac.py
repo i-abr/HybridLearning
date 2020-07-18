@@ -12,7 +12,7 @@ from .valuenetwork import ValueNetwork
 class SoftActorCritic(object):
 
     def __init__(self, policy, state_dim, action_dim, replay_buffer,
-                            hidden_dim  = 256,
+                            hidden_dim  = 128,
                             value_lr    = 3e-4,
                             soft_q_lr   = 3e-4,
                             policy_lr   = 3e-4,

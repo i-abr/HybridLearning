@@ -34,11 +34,12 @@ parser.add_argument('--render', dest='render', action='store_true')
 parser.add_argument('--no_render', dest='render', action='store_false')
 parser.set_defaults(render=True)
 parser.add_argument('--record', dest='record', action='store_true')
-parser.add_argument('--no-record', dest='record', action='store_false')
+parser.add_argument('--no_record', dest='record', action='store_false')
 parser.set_defaults(record=False)
 
 args = parser.parse_args()
 
+import pybullet as pb
 
 if __name__ == '__main__':
 
@@ -58,10 +59,12 @@ if __name__ == '__main__':
         print('no argument render,  assumping env.render will just work')
         env = NormalizedActions(envs.env_list[env_name]())
     assert np.any(np.abs(env.action_space.low) <= 1.) and  np.any(np.abs(env.action_space.high) <= 1.), 'Action space not normalizd'
-
     if args.record:
-        env = gym.wrappers.Monitor(env, 'recording', force=True)
+
+        env = gym.wrappers.Monitor(env, './data/vid/hlt/{}-{}'.format(env_name, args.frame), force=True)
     env.reset()
+
+    # pb.configureDebugVisualizer(pb.STATE_LOGGING_VIDEO_MP4)
 
     env.seed(args.seed)
     np.random.seed(args.seed)
@@ -122,6 +125,7 @@ if __name__ == '__main__':
         action = hybrid_policy(state)
         for _ in range(frame_skip):
             state, reward, done, _ = env.step(action.copy())
+            if done: break
         episode_reward += reward
         frame_idx += 1
 
