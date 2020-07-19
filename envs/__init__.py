@@ -1,6 +1,7 @@
 from pybullet_envs import gym_pendulum_envs, gym_manipulator_envs, gym_locomotion_envs
 from gym.envs import classic_control, box2d, mujoco
 from pybullet_envs.bullet.racecarGymEnv import RacecarGymEnv
+from pybullet_envs.deep_mimic.gym_env import HumanoidDeepMimicBackflipBulletEnv
 from pybullet_envs.bullet.minitaur_gym_env import MinitaurBulletEnv
 # from rex_gym.envs.gym.galloping_env import RexReactiveEnv
 
@@ -8,7 +9,8 @@ env_list = {
     'InvertedPendulumBulletEnv' : gym_pendulum_envs.InvertedPendulumSwingupBulletEnv,
     'HalfCheetahBulletEnv' : mujoco.HalfCheetahEnv,
     # 'HalfCheetahBulletEnv' : gym_locomotion_envs.HalfCheetahBulletEnv,
-    'HopperBulletEnv' : gym_locomotion_envs.HopperBulletEnv,
+    # 'HopperBulletEnv' : gym_locomotion_envs.HopperBulletEnv,
+    'HopperBulletEnv' : HumanoidDeepMimicBackflipBulletEnv,
     'AntBulletEnv' : gym_locomotion_envs.AntBulletEnv,
     'ReacherBulletEnv' : gym_manipulator_envs.ReacherBulletEnv,
     'PendulumEnv' : classic_control.PendulumEnv,

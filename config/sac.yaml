@@ -13,10 +13,15 @@ InvertedPendulumBulletEnv:
     frame_skip: 4
     max_steps: 500
 
+# HopperBulletEnv:
+#     max_frames: 50000
+#     max_steps: 1000
+#     frame_skip: 4
+
 HopperBulletEnv:
     max_frames: 50000
     max_steps: 1000
-    frame_skip: 4
+    frame_skip: 1
 
 # HalfCheetahBulletEnv:
 #     max_frames: 50000

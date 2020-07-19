@@ -112,7 +112,7 @@ if __name__ == '__main__':
         frame_idx += 1
 
         if args.render:
-            env.render("human")
+            env.render("rgb_array", width=320*2, height=240*2)
 
         if args.done_util:
             if done:
