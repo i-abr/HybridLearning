@@ -60,7 +60,7 @@ add_message_files(
   FILES
   Move.msg
   RelativeMove.msg
-  State.msg
+  Reward.msg
 #   Message2.msg
 )
 
