@@ -1,0 +1,4 @@
+<launch>
+    <node name="joy" pkg="joy" type="joy_node" output="screen" ></node>
+    <node name="expert_interface" pkg="hlt" type="expert_interface.py"></node>
+</launch>

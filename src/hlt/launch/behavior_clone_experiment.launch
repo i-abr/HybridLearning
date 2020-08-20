@@ -1,0 +1,4 @@
+<launch>
+    <node name="joy" pkg="joy" type="joy_node" output="screen" ></node>
+    <!-- <node name="state_relay" pkg="hlt" type="state_relay.py"></node> -->
+</launch>
