@@ -9,8 +9,6 @@ import yaml
 
 # local imports
 import envs
-import gym
-from gym import wrappers
 
 import torch
 from mpc_lib import ModelBasedDeterControl, PathIntegral
@@ -21,7 +19,6 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('--env',   type=str,   default='InvertedPendulumBulletEnv')
 parser.add_argument('--method', type=str, default='hlt_stoch')
-parser.add_argument('--frame', type=int, default=-1)
 parser.add_argument('--seed', type=int, default=666)
 parser.add_argument('--done_util', dest='done_util', action='store_true')
 parser.add_argument('--no_done_util', dest='done_util', action='store_false')
@@ -32,13 +29,8 @@ parser.set_defaults(log=False)
 parser.add_argument('--render', dest='render', action='store_true')
 parser.add_argument('--no_render', dest='render', action='store_false')
 parser.set_defaults(render=False)
-parser.add_argument('--record', dest='record', action='store_true')
-parser.add_argument('--no_record', dest='record', action='store_false')
-parser.set_defaults(record=False)
 
 args = parser.parse_args()
-
-import pybullet as pb
 
 if __name__ == '__main__':
 
@@ -63,12 +55,8 @@ if __name__ == '__main__':
             env.render() # needed for InvertedDoublePendulumBulletEnv
         except:
             print('render not needed')
-
-    if args.record:
-        env = gym.wrappers.Monitor(env, './data/vid/mpc/{}-{}'.format(env_name, args.frame), force=True)
     env.reset()
 
-    # pb.configureDebugVisualizer(pb.STATE_LOGGING_VIDEO_MP4)
 
     env.seed(args.seed)
     np.random.seed(args.seed)
@@ -77,6 +65,14 @@ if __name__ == '__main__':
     torch.cuda.manual_seed_all(args.seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
+
+    if args.log:
+        now = datetime.now()
+        date_str = now.strftime("%Y-%m-%d_%H-%M-%S/")
+        dir_name = 'seed_{}/'.format(str(args.seed))
+        path = './data/'  + config['method'] + '/' + env_name + '/' + dir_name
+        if os.path.exists(path) is False:
+            os.makedirs(path)
 
     action_dim = env.action_space.shape[0]
     state_dim  = env.observation_space.shape[0]
@@ -88,54 +84,76 @@ if __name__ == '__main__':
 
     model = Model(state_dim, action_dim, def_layers=[200]).to(device)
 
-    state_dict_path = './data/' + config['method'] + '/' + env_name + '/seed_{}/'.format(args.seed)
-
-    if args.frame == -1:
-        test_frame = 'final'
-    else:
-        test_frame = args.frame
-
-    model.load_state_dict(torch.load(state_dict_path+'model_{}.pt'.format(test_frame), map_location=device))
+    replay_buffer_size = 1000000
+    model_replay_buffer = SARSAReplayBuffer(replay_buffer_size)
+    model_optim = ModelOptimizer(model, model_replay_buffer, lr=config['model_lr'])
 
     if config['method'] == 'mbl_stoch':
-        planner     = PathIntegral(model,
-                                   samples=config['trajectory_samples'],
-                                   t_H=config['horizon'],
-                                   lam=config['lam'])
+        planner = PathIntegral(model,
+                               samples=config['trajectory_samples'],
+                               t_H=config['horizon'],
+                               lam=config['lam'])
     elif config['method'] == 'mbl_deter':
-        planner     = ModelBasedDeterControl(model, T=config['horizon'])
+        planner = ModelBasedDeterControl(model, T=config['horizon'])
     else:
         ValueError('method not found in config')
 
     max_frames  = config['max_frames']
     max_steps   = config['max_steps']
     frame_skip  = config['frame_skip']
+    reward_scale = config['reward_scale']
 
     frame_idx   = 0
     rewards     = []
+    batch_size  = 128
 
     ep_num = 0
-    state = env.reset()
+    while frame_idx < max_frames:
+        state = env.reset()
 
-    episode_reward = 0
-    done = False
-    for step in range(max_steps):
-        action, _rho = planner(next_state)
-        for _ in range(frame_skip):
-            state, reward, done, _ = env.step(action.copy())
-            if done: break
-        episode_reward += reward
-        frame_idx += 1
+        episode_reward = 0
+        done = False
+        for step in range(max_steps):
+            for _ in range(frame_skip):
+                next_state, reward, done, _ = env.step(action.copy())
 
-        if args.render:
-            try:
-                env.render(mode="rgb_array", width=320*2, height=240*2)
-            except TypeError as err:
-                env.render()
+            next_action, _rho = planner(next_state)
 
-        if args.done_util:
-            if done:
-                break
-    rewards.append([frame_idx, episode_reward])
-    ep_num += 1
-    env.close()
+            model_replay_buffer.push(state, action, reward_scale*reward, next_state, next_action, done)
+
+            if len(model_replay_buffer) > batch_size:
+                model_optim.update_model(batch_size, mini_iter=config['model_iter'])
+
+
+            state = next_state
+            action = next_action
+            episode_reward += reward
+            frame_idx += 1
+
+            if args.render:
+                env.render("human")
+
+            if frame_idx % (max_frames//10) == 0:
+                last_reward = rewards[-1][1] if len(rewards)>0 else 0
+                print(
+                    'frame : {}/{}, \t last rew: {}'.format(
+                        frame_idx, max_frames, last_reward
+                    )
+                )
+                if args.log:
+                    print('saving model and reward log')
+                    pickle.dump(rewards, open(path + 'reward_data' + '.pkl', 'wb'))
+                    torch.save(model.state_dict(), path + 'model_' + str(frame_idx) + '.pt')
+
+            if args.done_util:
+                if done:
+                    break
+        if len(replay_buffer) > batch_size:
+            print('ep rew', ep_num, episode_reward, frame_idx)
+        rewards.append([frame_idx, episode_reward])
+        ep_num += 1
+    if args.log:
+        print('saving final data set')
+        pickle.dump(rewards, open(path + 'reward_data'+ '.pkl', 'wb'))
+        torch.save(policy_net.state_dict(), path + 'policy_' + 'final' + '.pt')
+        torch.save(model.state_dict(), path + 'model_' + 'final' + '.pt')

@@ -6,10 +6,10 @@ class PathIntegral(object):
     def __init__(self, model, samples=10, t_H=10, lam=0.1, eps=0.3):
 
 
-        self.model          = model
-        self.num_actions    = model.num_actions
-        self.t_H            = t_H
-        self.lam            = lam
+        self.model           = model
+        self.num_actions     = model.num_actions
+        self.t_H             = t_H                  # time horizon
+        self.lam             = lam
         self.samples         = samples
 
         self.a = torch.zeros(t_H, self.num_actions)
@@ -57,4 +57,4 @@ class PathIntegral(object):
             for t in range(self.t_H):
                 self.a[t] = self.a[t] + torch.mv(da[t].T, w[t])
 
-            return self.a[0].clone().numpy()
+            return self.a[0].clone().numpy(), None
