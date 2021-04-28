@@ -29,7 +29,7 @@ parser.add_argument('--no_done_util', dest='done_util', action='store_false')
 parser.set_defaults(done_util=True)
 parser.add_argument('--log', dest='log', action='store_true')
 parser.add_argument('--no-log', dest='log', action='store_false')
-parser.set_defaults(log=False)
+parser.set_defaults(log=True)
 parser.add_argument('--render', dest='render', action='store_true')
 parser.add_argument('--no_render', dest='render', action='store_false')
 parser.set_defaults(render=False)
@@ -178,6 +178,7 @@ if __name__ == '__main__':
             print('ep rew', ep_num, episode_reward, frame_idx)
         rewards.append([frame_idx, episode_reward,ep_num])
         ep_num += 1
+    env.close()
     if args.log:
         print('saving final data set')
         pickle.dump(rewards, open(path + 'reward_data'+ '.pkl', 'wb'))

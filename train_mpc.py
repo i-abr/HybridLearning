@@ -11,21 +11,22 @@ import yaml
 import envs
 
 import torch
+from sac_lib import NormalizedActions
 from mpc_lib import ModelBasedDeterControl, PathIntegral
 from model import ModelOptimizer, Model, SARSAReplayBuffer
 
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--env',   type=str,   default='InvertedPendulumBulletEnv')
-parser.add_argument('--method', type=str, default='hlt_stoch')
+parser.add_argument('--env', type=str, default='InvertedPendulumBulletEnv')
+parser.add_argument('--method', type=str, default='mpc_stoch')
 parser.add_argument('--seed', type=int, default=666)
 parser.add_argument('--done_util', dest='done_util', action='store_true')
 parser.add_argument('--no_done_util', dest='done_util', action='store_false')
 parser.set_defaults(done_util=True)
 parser.add_argument('--log', dest='log', action='store_true')
 parser.add_argument('--no-log', dest='log', action='store_false')
-parser.set_defaults(log=False)
+parser.set_defaults(log=True)
 parser.add_argument('--render', dest='render', action='store_true')
 parser.add_argument('--no_render', dest='render', action='store_false')
 parser.set_defaults(render=False)
@@ -88,12 +89,12 @@ if __name__ == '__main__':
     model_replay_buffer = SARSAReplayBuffer(replay_buffer_size)
     model_optim = ModelOptimizer(model, model_replay_buffer, lr=config['model_lr'])
 
-    if config['method'] == 'mbl_stoch':
+    if config['method'] == 'mpc_stoch':
         planner = PathIntegral(model,
                                samples=config['trajectory_samples'],
                                t_H=config['horizon'],
                                lam=config['lam'])
-    elif config['method'] == 'mbl_deter':
+    elif config['method'] == 'mpc_deter':
         planner = ModelBasedDeterControl(model, T=config['horizon'])
     else:
         ValueError('method not found in config')
@@ -110,6 +111,8 @@ if __name__ == '__main__':
     ep_num = 0
     while frame_idx < max_frames:
         state = env.reset()
+
+        action, _rho = planner(state)
 
         episode_reward = 0
         done = False
@@ -148,12 +151,12 @@ if __name__ == '__main__':
             if args.done_util:
                 if done:
                     break
-        if len(replay_buffer) > batch_size:
+        if len(model_replay_buffer) > batch_size:
             print('ep rew', ep_num, episode_reward, frame_idx)
         rewards.append([frame_idx, episode_reward])
         ep_num += 1
+    env.close()
     if args.log:
         print('saving final data set')
         pickle.dump(rewards, open(path + 'reward_data'+ '.pkl', 'wb'))
-        torch.save(policy_net.state_dict(), path + 'policy_' + 'final' + '.pt')
         torch.save(model.state_dict(), path + 'model_' + 'final' + '.pt')

@@ -13,6 +13,7 @@ import gym
 from gym import wrappers
 
 import torch
+from sac_lib import NormalizedActions
 from mpc_lib import ModelBasedDeterControl, PathIntegral
 from model import ModelOptimizer, Model, SARSAReplayBuffer
 
@@ -20,7 +21,7 @@ import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--env',   type=str,   default='InvertedPendulumBulletEnv')
-parser.add_argument('--method', type=str, default='hlt_stoch')
+parser.add_argument('--method', type=str, default='mpc_stoch')
 parser.add_argument('--frame', type=int, default=-1)
 parser.add_argument('--seed', type=int, default=666)
 parser.add_argument('--done_util', dest='done_util', action='store_true')
@@ -97,12 +98,12 @@ if __name__ == '__main__':
 
     model.load_state_dict(torch.load(state_dict_path+'model_{}.pt'.format(test_frame), map_location=device))
 
-    if config['method'] == 'mbl_stoch':
+    if config['method'] == 'mpc_stoch':
         planner     = PathIntegral(model,
                                    samples=config['trajectory_samples'],
                                    t_H=config['horizon'],
                                    lam=config['lam'])
-    elif config['method'] == 'mbl_deter':
+    elif config['method'] == 'mpc_deter':
         planner     = ModelBasedDeterControl(model, T=config['horizon'])
     else:
         ValueError('method not found in config')
