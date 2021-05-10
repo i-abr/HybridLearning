@@ -23,7 +23,7 @@ from model import ModelOptimizer, Model, SARSAReplayBuffer
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--env',   type=str,   default='InvertedPendulumBulletEnv')
+parser.add_argument('--env', type=str, default='InvertedPendulumBulletEnv')
 parser.add_argument('--method', type=str, default='hlt_stoch')
 parser.add_argument('--seed', type=int, default=666)
 parser.add_argument('--done_util', dest='done_util', action='store_true')
@@ -53,7 +53,10 @@ if __name__ == '__main__':
     except TypeError as err:
         print('no argument render,  assumping env.render will just work')
         env = NormalizedActions(envs.env_list[env_name]())
-    assert np.any(np.abs(env.action_space.low) <= 1.) and  np.any(np.abs(env.action_space.high) <= 1.), 'Action space not normalizd'
+    if args.env == 'PendulumEnv':
+        assert env.action_space.low == -env.action_space.high, 'Action space not symmetric'
+    else:
+        assert np.any(np.abs(env.action_space.low) <= 1.) and  np.any(np.abs(env.action_space.high) <= 1.), 'Action space not normalizd'
 
     env.reset()
 
@@ -74,8 +77,8 @@ if __name__ == '__main__':
         device  = 'cuda:0'
         print('Using GPU Accel')
 
-    policy_net = PolicyNetwork(state_dim, action_dim, hidden_dim).to(device)
-    model = Model(state_dim, action_dim, def_layers=[200]).to(device)
+    policy_net = PolicyNetwork(state_dim, action_dim, hidden_dim,AF=config['activation_fun']).to(device)
+    model = Model(state_dim, action_dim, def_layers=[200],AF=config['activation_fun']).to(device)
 
     state_dict_path = './data/' + config['method'] + '/' + env_name
     mig_log = []
@@ -88,17 +91,17 @@ if __name__ == '__main__':
             policy_net.load_state_dict(torch.load(policy_path, map_location=device))
             model.load_state_dict(torch.load(model_path, map_location=device))
 
-            if config['method'] == 'hlt_stoch':
-                hybrid_policy = StochPolicyWrapper(model, policy_net,
-                                        samples=config['trajectory_samples'],
-                                        t_H=config['horizon'],
-                                        lam=config['lam'])
-            elif config['method'] == 'hlt_deter':
+            # if config['method'] == 'hlt_stoch':
+            #     hybrid_policy = StochPolicyWrapper(model, policy_net,
+            #                             samples=config['trajectory_samples'],
+            #                             t_H=config['horizon'],
+            #                             lam=config['lam'])
+            if config['method'] == 'hlt_deter':
                 hybrid_policy = DetPolicyWrapper(model, policy_net,
                                             T=config['horizon'],
                                             lr=config['planner_lr'])
             else:
-                ValueError('method not found in config')
+                raise ValueError('method not found in config')
 
             max_frames  = config['max_frames']
             max_steps   = config['max_steps']
@@ -138,4 +141,4 @@ if __name__ == '__main__':
             mig_log.append(mig)
 
             print('savig mig log for ' + seed_dir)
-            pickle.dump(mig_log, open('./data/hlt_deter/'+env_name+'/mig_log.pkl', 'wb'))
+            pickle.dump(mig_log, open('./data/'+config['method']+'/'+env_name+'/mig_log.pkl', 'wb'))

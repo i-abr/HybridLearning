@@ -36,7 +36,6 @@ def compute_jacobian(inputs, output, create_graph=False):
 class ModelBasedDeterControl(object):
 
     def __init__(self, model, T=10, eps=1e-1, reg=1.0):
-
         self.model = model
         self.T = T
         self.eps = eps
@@ -45,21 +44,26 @@ class ModelBasedDeterControl(object):
         self.num_states = model.num_states
         self.num_actions = model.num_actions
 
+        self.device = 'cpu'
+        if torch.cuda.is_available():
+            self.device = 'cuda:0'
+
         self.u = torch.cat(
-            [torch.zeros(1, self.num_actions) for t in range(self.T)], dim=0)
+            [torch.zeros(1, self.num_actions) for t in range(self.T)], dim=0).to(self.device)
         self.u.requires_grad = True
 
     def reset(self):
         self.u = torch.cat(
-            [torch.zeros(1, self.num_actions) for t in range(self.T)], dim=0)
+            [torch.zeros(1, self.num_actions) for t in range(self.T)], dim=0).to(self.device)
         self.u.requires_grad = True
 
 
     def __call__(self, state):
+        # get mode insertion
         with torch.no_grad():
             self.u[:-1] = self.u[1:].clone()
             self.u[-1].zero_()
-            x_t = torch.FloatTensor(state).unsqueeze(0)
+            x_t = torch.FloatTensor(state).unsqueeze(0).to(self.device)
             x = []
             for t in range(self.T):
                 x.append(x_t.clone())
@@ -85,7 +89,7 @@ class ModelBasedDeterControl(object):
         # dldu = dldu/(torch.norm(dldu, dim=[1,2],keepdim=True)+1e-4)
 
         with torch.no_grad():
-            rho = torch.zeros(1, self.num_states)
+            rho = torch.zeros(1, self.num_states).to(self.device)
             for t in reversed(range(self.T)):
                 # rho = (0.2**(t))*dldx[t] + rho.mm(dfdx[t])
                 rho = dldx[t] + rho.mm(dfdx[t])
@@ -98,8 +102,7 @@ class ModelBasedDeterControl(object):
             rho = torch.clamp(rho, -1,+1)
             _u = rho.mm(dfdu[0])
 
-        f1,_ = self.model.step(x[0].unsqueeze(0), torch.clamp(self.u[0].unsqueeze(0),-1,+1) )
-        f2,_ = self.model.step(x[0].unsqueeze(0), torch.clamp(_u[0].unsqueeze(0),-1,+1))
-        return torch.clamp(_u[0], -1, +1).detach().clone().numpy(), rho.mm((f2-f1).T).detach().clone().numpy().squeeze()
-
+            f1,_ = self.model.step(x[0].unsqueeze(0), torch.clamp(self.u[0].unsqueeze(0),-1,+1) )
+            f2,_ = self.model.step(x[0].unsqueeze(0), torch.clamp(_u[0].unsqueeze(0),-1,+1)) # should this be self.u + _u ? alp
+            return torch.clamp(_u[0], -1, +1).cpu().clone().numpy(), rho.mm((f2-f1).T).squeeze().cpu().clone().numpy()
         # return torch.tanh(self.u[0] + u_p[0]).detach().clone().numpy()

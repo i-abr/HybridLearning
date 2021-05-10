@@ -11,33 +11,38 @@ class StochPolicyWrapper(object):
         self.num_actions    = model.num_actions
         self.t_H            = t_H
         self.lam            = lam
-        self.samples         = samples
+        self.samples        = samples
 
-        self.a = torch.zeros(t_H, self.num_actions)
         self.device = 'cpu'
         if torch.cuda.is_available():
             self.device = 'cuda'
 
+        self.a = torch.zeros(t_H, self.num_actions)
         self.a = self.a.to(self.device)
 
     def reset(self):
-        self.a.zero_()
+        with torch.no_grad():
+            self.a.zero_()
 
     def __call__(self, state):
 
         with torch.no_grad():
             self.a[:-1] = self.a[1:].clone()
             self.a[-1].zero_()
+
             s0 = torch.FloatTensor(state).unsqueeze(0).to(self.device)
             s = s0.repeat(self.samples, 1)
+
             mu, log_std = self.policy(s)
             sk, da, log_prob = [], [], []
             for t in range(self.t_H):
                 pi = Normal(mu, log_std.exp())
                 v = torch.tanh(pi.sample())
-                log_prob.append(pi.log_prob(self.a[t].expand_as(v)).sum(1))
+                da_t = v - self.a[t].expand_as(v)
+                log_prob.append(pi.log_prob(da_t).sum(1))
+                # log_prob.append(pi.log_prob(self.a[t].expand_as(v)).sum(1))  # should this be da? alp
                 # log_prob.append(pi.log_prob(v).sum(1))
-                da.append(v - self.a[t].expand_as(v))
+                da.append(da_t)
                 # da.append(v)
                 s, rew = self.model.step(s, v)
                 mu, log_std = self.policy(s)
@@ -45,7 +50,6 @@ class StochPolicyWrapper(object):
 
             sk = torch.stack(sk)
             sk = torch.cumsum(sk.flip(0), 0).flip(0)
-
             log_prob = torch.stack(log_prob)
 
             sk = sk + self.lam*log_prob

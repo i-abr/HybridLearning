@@ -13,11 +13,21 @@ default:
     model_iter: 5
     trajectory_samples: 60
     lam: 0.1
+    activation_fun: 'ReLU'
 
-InvertedPendulumBulletEnv:
+PendulumEnv:
+    activation_fun: 'sin'
     max_frames: 10000
     frame_skip: 4
-    max_steps: 500
+    max_steps: 200
+    model_iter: 5
+    planner_lr: 0.1
+
+InvertedPendulumBulletEnv:
+    activation_fun: 'sin'
+    max_frames: 10000
+    frame_skip: 4
+    max_steps: 200
     model_iter: 5
     planner_lr: 0.1
 

@@ -30,11 +30,11 @@ def jacobian(y, x):
         v = torch.zeros_like(y)
         v[:, i] = 1.
         dy_i_dx = autograd.grad(y,
-                                   x,
-                                   grad_outputs=v,
-                                   retain_graph=True,
-                                   create_graph=True,
-                                   allow_unused=True)[0]  # shape [B, N]
+                                x,
+                                grad_outputs=v,
+                                retain_graph=True,
+                                create_graph=True,
+                                allow_unused=True)[0]  # shape [B, N]
         jacobian.append(dy_i_dx)
 
     jacobian = torch.stack(jacobian, dim=2).requires_grad_()

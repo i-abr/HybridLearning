@@ -1,5 +1,5 @@
 default:
-    method: "mbl_stoch"
+    method: "mpc_stoch"
     max_steps: 200
     max_frames: 10000
     frame_skip: 2
@@ -9,8 +9,10 @@ default:
     model_iter: 5
     trajectory_samples: 60
     lam: 0.1
+    activation_fun: 'ReLU'
 
 PendulumEnv:
+    activation_fun: 'sin'
     max_frames: 10000
     frame_skip: 4
     max_steps: 200
@@ -18,9 +20,10 @@ PendulumEnv:
     model_iter: 5
 
 InvertedPendulumBulletEnv:
+    activation_fun: 'sin'
     max_frames: 10000
     frame_skip: 4
-    max_steps: 500
+    max_steps: 200
     lam: 0.1
     model_iter: 5
 

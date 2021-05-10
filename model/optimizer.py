@@ -29,14 +29,16 @@ class ModelOptimizer(object):
     def update_model(self, batch_size, mini_iter=1):
 
         for k in range(mini_iter):
-
+            # get samples
             states, actions, rewards, next_states, next_action, done = self.replay_buffer.sample(batch_size)
+            # convert to tensors
             states = torch.FloatTensor(states).to(self.device)
             next_states = torch.FloatTensor(next_states).to(self.device)
             actions = torch.FloatTensor(actions).to(self.device)
             next_action = torch.FloatTensor(next_action).to(self.device)
             rewards = torch.FloatTensor(rewards).unsqueeze(1).to(self.device)
             done    = torch.FloatTensor(np.float32(done)).unsqueeze(1).to(self.device)
+            # get model prediction
             pred_mean, pred_std, pred_rew = self.model(states, actions)
 
             state_dist = Normal(pred_mean, pred_std)
@@ -74,17 +76,22 @@ class MDNModelOptimizer(object):
         # logger
         self.log = {'loss' : [], 'rew_loss': []}
 
+        self.device = 'cpu'
+        if torch.cuda.is_available():
+            self.device = 'cuda'
+
     def update_model(self, batch_size, mini_iter=1):
 
         for k in range(mini_iter):
+            # get samples
             states, actions, rewards, next_states, done = self.replay_buffer.sample(batch_size)
-
-            states = torch.FloatTensor(states)
-            next_states = torch.FloatTensor(next_states)
-            actions = torch.FloatTensor(actions)
-            rewards = torch.FloatTensor(rewards).unsqueeze(1)
-            done    = torch.FloatTensor(np.float32(done)).unsqueeze(1)
-
+            # convert to tensors
+            states = torch.FloatTensor(states).to(self.device)
+            next_states = torch.FloatTensor(next_states).to(self.device)
+            actions = torch.FloatTensor(actions).to(self.device)
+            rewards = torch.FloatTensor(rewards).unsqueeze(1).to(self.device)
+            done    = torch.FloatTensor(np.float32(done)).unsqueeze(1).to(self.device)
+            # get model prediction
             log_probs, pred_rewards = self.model(states, actions, next_states)
 
             next_value = self.model.predict_reward(next_states)

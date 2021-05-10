@@ -3,22 +3,46 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Normal
 
+class _AF(nn.Module):
+    def __init__(self):
+        super(_AF, self).__init__()
+    def forward(self, x):
+        return torch.sin(x)
+
+
 class Model(nn.Module):
     def __init__(self, num_states, num_actions,
-                 def_layers=[200, 200], std=0.):
+                 def_layers=[200, 200], std=0., AF=None):
 
         super(Model, self).__init__()
         self.num_states  = num_states
         self.num_actions = num_actions
 
-        self.mu = nn.Sequential(
-            nn.Linear(num_states+num_actions, def_layers[0]),
-            nn.ReLU(),
-            nn.Linear(def_layers[0], def_layers[0]),
-            nn.ReLU(),
-            nn.Linear(def_layers[0], num_states)
-        )
+        '''
+        Model representation of dynamics is single layer network with sin(x) nonlinearity.
+        For locomotion tasks, we use the rectifying linear unit (RELU) nonlinearity.
+        '''
+        if AF == 'sin':
+            self.mu = nn.Sequential(
+                nn.Linear(num_states+num_actions, def_layers[0]),
+                _AF(),
+                # nn.Linear(def_layers[0], def_layers[0]),
+                # _AF(),
+                nn.Linear(def_layers[0], num_states)
+            )
+        else:
+            self.mu = nn.Sequential(
+                nn.Linear(num_states+num_actions, def_layers[0]),
+                nn.ReLU(),
+                # nn.Linear(def_layers[0], def_layers[0]),
+                # nn.ReLU(),
+                nn.Linear(def_layers[0], num_states)
+            )
 
+        '''
+        The reward function is modeled as a two layer network and
+        RELU activation function.
+        '''
         self.reward_fun = nn.Sequential(
             nn.Linear(num_states+num_actions, def_layers[0]),
             nn.ReLU(),

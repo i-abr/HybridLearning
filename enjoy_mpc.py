@@ -58,7 +58,10 @@ if __name__ == '__main__':
     except TypeError as err:
         print('no argument render,  assumping env.render will just work')
         env = NormalizedActions(envs.env_list[env_name]())
-    assert np.any(np.abs(env.action_space.low) <= 1.) and  np.any(np.abs(env.action_space.high) <= 1.), 'Action space not normalizd'
+    if args.env == 'PendulumEnv':
+        assert env.action_space.low == -env.action_space.high, 'Action space not symmetric'
+    else:
+        assert np.any(np.abs(env.action_space.low) <= 1.) and  np.any(np.abs(env.action_space.high) <= 1.), 'Action space not normalizd'
     if args.render:
         try:
             env.render() # needed for InvertedDoublePendulumBulletEnv
@@ -87,7 +90,7 @@ if __name__ == '__main__':
         device  = 'cuda:0'
         print('Using GPU Accel')
 
-    model = Model(state_dim, action_dim, def_layers=[200]).to(device)
+    model = Model(state_dim, action_dim, def_layers=[200],AF=config['activation_fun']).to(device)
 
     state_dict_path = './data/' + config['method'] + '/' + env_name + '/seed_{}/'.format(args.seed)
 
@@ -106,7 +109,7 @@ if __name__ == '__main__':
     elif config['method'] == 'mpc_deter':
         planner     = ModelBasedDeterControl(model, T=config['horizon'])
     else:
-        ValueError('method not found in config')
+        raise ValueError('method not found in config')
 
     max_frames  = config['max_frames']
     max_steps   = config['max_steps']

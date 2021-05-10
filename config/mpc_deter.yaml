@@ -1,5 +1,5 @@
 default:
-    method: "mbl_deter"
+    method: "mpc_deter"
     max_steps: 200
     max_frames: 10000
     frame_skip: 2
@@ -7,11 +7,20 @@ default:
     reward_scale: 1.0
     horizon: 5
     model_iter: 5
+    activation_fun: 'ReLU'
 
-InvertedPendulumBulletEnv:
+PendulumEnv:
+    activation_fun: 'sin'
     max_frames: 10000
     frame_skip: 4
-    max_steps: 500
+    max_steps: 200
+    model_iter: 5
+
+InvertedPendulumBulletEnv:
+    activation_fun: 'sin'
+    max_frames: 10000
+    frame_skip: 4
+    max_steps: 200
     model_iter: 5
 
 HopperBulletEnv:

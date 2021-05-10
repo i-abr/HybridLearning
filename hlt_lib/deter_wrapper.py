@@ -46,9 +46,11 @@ class DetPolicyWrapper(object):
         self.device = 'cpu'
         if torch.cuda.is_available():
             self.device = 'cuda:0'
-        self.lr = lr
+
         self.u = torch.zeros(T, self.action_dim).to(self.device)
         self.u.requires_grad = True
+
+        self.lr = lr
         self.optim = optim.SGD([self.u], lr=lr)
 
     def reset(self):
@@ -61,16 +63,21 @@ class DetPolicyWrapper(object):
             s = torch.FloatTensor(state).unsqueeze(0).to(self.device)
             x = []
             for u in self.u:
+                x.append(s.clone())
                 u_t, log_std_t = self.policy(s)
-                pi = Normal(torch.tanh(u_t), log_std_t.exp())
+                # pi = Normal(torch.tanh(u_t), log_std_t.exp()) # unused (commmented out alp 5/10)
                 u_app = torch.tanh(u_t+u.unsqueeze(0)) #+ torch.randn_like(u_t) * torch.exp(log_std_t)
                 s, r = self.model.step(s, u_app)
-                x.append(s.clone())
+
+        # compute those derivatives
         x = torch.cat(x)
         x.requires_grad = True
-        self.optim.zero_grad()
+
+        # self.optim.zero_grad() #unused (commmented out alp 5/10)
         u_p, log_std_p = self.policy(x)
-        pred_state, pred_rew = self.model.step(x, self.u+u_p)
+
+        pred_state, pred_rew = self.model.step(x, torch.tanh(self.u+u_p)) # torch.tanh added here (alp 5/10)
+
         dfdx = compute_jacobian(x, pred_state)
         dfdu = compute_jacobian(self.u, pred_state)
         dldx = compute_jacobian(x, pred_rew)
@@ -93,20 +100,21 @@ class DetPolicyWrapper(object):
         for epoch in range(epochs):
             s = torch.FloatTensor(state).unsqueeze(0).to(self.device)
             cost = 0.
-            t = 0
+            # t = 0 # unused (commmented out alp 5/10)
             for u in self.u:
                 u_t, log_std_t = self.policy(s)
                 pi = Normal(torch.tanh(u_t), log_std_t.exp())
                 u_app = torch.tanh(u_t+u.unsqueeze(0)) #+ torch.randn_like(u_t) * torch.exp(log_std_t)
                 s, r = self.model.step(s, u_app)
                 cost = cost - (r + pi.log_prob(u_app).mean())
-                t += 1
+                # t += 1 # unused (commmented out alp 5/10)
             self.optim.zero_grad()
             cost.backward()
             self.optim.step()
 
         with torch.no_grad():
-            u_t, log_std_t = self.policy(torch.FloatTensor(state).unsqueeze(0).to(self.device))
+            s = torch.FloatTensor(state).unsqueeze(0).to(self.device)
+            u_t, log_std_t = self.policy(s)
             v = u_t + torch.randn_like(log_std_t) * torch.exp(log_std_t)
             # u = torch.tanh((v.squeeze() + self.u[0]).cpu().clone()).numpy()
             u = torch.tanh(v.squeeze() + self.u[0]).cpu().clone().numpy()
