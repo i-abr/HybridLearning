@@ -40,6 +40,7 @@ class StochPolicyWrapper(object):
                 v = torch.tanh(pi.sample())
                 da_t = v - self.a[t].expand_as(v)
                 log_prob.append(pi.log_prob(da_t).sum(1))
+#                 log_prob.append(pi.log_prob(v).sum(1))
                 # log_prob.append(pi.log_prob(self.a[t].expand_as(v)).sum(1))  # should this be da? alp
                 # log_prob.append(pi.log_prob(v).sum(1))
                 da.append(da_t)
@@ -64,4 +65,4 @@ class StochPolicyWrapper(object):
             for t in range(self.t_H):
                 self.a[t] = self.a[t] + torch.mv(da[t].T, w[t])
                 # self.a[t] = torch.mv(da[t].T, w[t])
-            return self.a[0].cpu().clone().numpy()
+            return self.a[0].cpu().clone().numpy(), None

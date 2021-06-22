@@ -99,10 +99,13 @@ class ModelBasedDeterControl(object):
             # rho_norm = torch.norm(rho)
             # if rho_norm > 10.0:
             #     rho = 10.0 * rho / rho_norm
-            rho = torch.clamp(rho, -1,+1)
+            rho = torch.clamp(rho, -1.,+1.)
             _u = rho.mm(dfdu[0])
 
-            f1,_ = self.model.step(x[0].unsqueeze(0), torch.clamp(self.u[0].unsqueeze(0),-1,+1) )
-            f2,_ = self.model.step(x[0].unsqueeze(0), torch.clamp(_u[0].unsqueeze(0),-1,+1)) # should this be self.u + _u ? alp
-            return torch.clamp(_u[0], -1, +1).cpu().clone().numpy(), rho.mm((f2-f1).T).squeeze().cpu().clone().numpy()
+            f1,_ = self.model.step(x[0].unsqueeze(0),
+                                   torch.clamp(self.u[0].unsqueeze(0),-1.,+1.) )
+            f2,_ = self.model.step(x[0].unsqueeze(0),
+                                   torch.clamp(_u[0].unsqueeze(0),-1.,+1.))
+            return (torch.clamp(_u[0], -1., +1.).cpu().clone().numpy(),
+                    rho.mm((f2-f1).T).squeeze().cpu().clone().numpy())
         # return torch.tanh(self.u[0] + u_p[0]).detach().clone().numpy()

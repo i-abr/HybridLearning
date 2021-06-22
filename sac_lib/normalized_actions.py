@@ -2,6 +2,11 @@ import gym
 import numpy as np
 
 class NormalizedActions(gym.ActionWrapper):
+    def __init__(self, env: gym.Env):
+        super().__init__(env)
+        low_bound   = self.action_space.low
+        upper_bound = self.action_space.high
+        self.action_space = gym.spaces.Box(low=np.full_like(low_bound, -1.), high=np.full_like(upper_bound, +1.))
 
     def action(self, action):
         low_bound   = self.action_space.low

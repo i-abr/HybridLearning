@@ -26,16 +26,14 @@ class Model(nn.Module):
             self.mu = nn.Sequential(
                 nn.Linear(num_states+num_actions, def_layers[0]),
                 _AF(),
-                # nn.Linear(def_layers[0], def_layers[0]),
-                # _AF(),
+                # nn.Linear(def_layers[0], def_layers[0]), _AF(),
                 nn.Linear(def_layers[0], num_states)
             )
         else:
             self.mu = nn.Sequential(
                 nn.Linear(num_states+num_actions, def_layers[0]),
                 nn.ReLU(),
-                # nn.Linear(def_layers[0], def_layers[0]),
-                # nn.ReLU(),
+                # nn.Linear(def_layers[0], def_layers[0]), nn.ReLU(),
                 nn.Linear(def_layers[0], num_states)
             )
 

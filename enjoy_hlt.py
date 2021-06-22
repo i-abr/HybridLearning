@@ -23,7 +23,7 @@ from model import ModelOptimizer, Model, SARSAReplayBuffer
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--env',   type=str,   default='InvertedPendulumBulletEnv')
+parser.add_argument('--env',   type=str,   default='InvertedPendulumEnv')
 parser.add_argument('--method', type=str, default='hlt_stoch')
 parser.add_argument('--frame', type=int, default=-1)
 parser.add_argument('--seed', type=int, default=666)
@@ -58,10 +58,10 @@ if __name__ == '__main__':
     except TypeError as err:
         print('no argument render,  assumping env.render will just work')
         env = NormalizedActions(envs.env_list[env_name]())
-    if args.env == 'PendulumEnv':
-        assert env.action_space.low == -env.action_space.high, 'Action space not symmetric'
-    else:
-        assert np.any(np.abs(env.action_space.low) <= 1.) and  np.any(np.abs(env.action_space.high) <= 1.), 'Action space not normalizd'
+#     if args.env == 'PendulumEnv':
+#         assert env.action_space.low == -env.action_space.high, 'Action space not symmetric'
+#     else:
+    assert np.any(np.abs(env.action_space.low) <= 1.) and  np.any(np.abs(env.action_space.high) <= 1.), 'Action space not normalizd'
     if args.record:
         env = gym.wrappers.Monitor(env, './data/vid/hlt/{}-{}'.format(env_name, args.frame), force=True)
     env.reset()
@@ -124,7 +124,7 @@ if __name__ == '__main__':
     episode_reward = 0
     done = False
     for step in range(max_steps):
-        action = hybrid_policy(state)
+        action,_ = hybrid_policy(state)
         for _ in range(frame_skip):
             state, reward, done, _ = env.step(action.copy())
             if done: break
@@ -133,7 +133,8 @@ if __name__ == '__main__':
 
         if args.render:
             try:
-                env.render(mode="rgb_array", width=320*2, height=240*2)
+#                 env.render(mode="rgb_array", width=320*2, height=240*2)
+                env.render(mode="human")
             except TypeError as err:
                 env.render()
 

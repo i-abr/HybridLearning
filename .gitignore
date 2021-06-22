@@ -1,3 +1,5 @@
 *__pycache__
 *.pyc
-data/
+local/*
+*.ipynb_checkpoints
+cleanup.sh

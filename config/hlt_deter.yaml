@@ -3,15 +3,14 @@ default:
     max_steps: 200
     max_frames: 10000
     frame_skip: 2
-    model_lr: !!float 3e-4
-    policy_lr: !!float 3e-4
+    model_lr: !!float 3e-3
+    policy_lr: !!float 3e-3
     value_lr: !!float 3e-4
     soft_q_lr: !!float 3e-4
     planner_lr: 0.1
     reward_scale: 1.0
     horizon: 5
     model_iter: 5
-    trajectory_samples: 60
     lam: 0.1
     activation_fun: 'ReLU'
 
@@ -21,7 +20,9 @@ PendulumEnv:
     frame_skip: 4
     max_steps: 200
     model_iter: 5
-    planner_lr: 0.1
+#     horizon: 10
+#     planner_lr: 0.01
+
 
 InvertedPendulumBulletEnv:
     activation_fun: 'sin'
@@ -29,18 +30,33 @@ InvertedPendulumBulletEnv:
     frame_skip: 4
     max_steps: 200
     model_iter: 5
-    planner_lr: 0.1
+#     planner_lr: 0.1
 
-HopperBulletEnv:
+InvertedPendulumEnv:
+#     activation_fun: 'sin'
+    max_frames: 50000
+    frame_skip: 4
+    max_steps: 1000
+    horizon: 10
+    # model_iter: 5
+#     planner_lr: 0.001
+
+# HopperBulletEnv:
+#     max_frames: 50000
+#     max_steps: 1000
+#     frame_skip: 4
+#     planner_lr: 0.00001
+
+
+HopperEnv:
     max_frames: 50000
     max_steps: 1000
     frame_skip: 4
-    horizon: 5
-    planner_lr: 0.00001
+#     planner_lr: 0.00001
 
-HalfCheetahBulletEnv:
+HalfCheetahEnv:
     max_frames: 50000
     max_steps: 1000
     frame_skip: 5
     horizon: 10
-    planner_lr: 0.00001
+#     planner_lr: 0.00001

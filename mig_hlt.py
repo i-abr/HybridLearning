@@ -23,9 +23,7 @@ from model import ModelOptimizer, Model, SARSAReplayBuffer
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--env', type=str, default='InvertedPendulumBulletEnv')
-parser.add_argument('--method', type=str, default='hlt_stoch')
-parser.add_argument('--seed', type=int, default=666)
+parser.add_argument('--env', type=str, default='InvertedPendulumEnv')
 parser.add_argument('--done_util', dest='done_util', action='store_true')
 parser.add_argument('--no_done_util', dest='done_util', action='store_false')
 parser.set_defaults(done_util=True)
@@ -38,7 +36,7 @@ args = parser.parse_args()
 
 if __name__ == '__main__':
 
-    config_path = './config/' + args.method + '.yaml'
+    config_path = './config/hlt_deter.yaml'
     with open(config_path, 'r') as f:
         config_dict = yaml.safe_load(f)
         config = config_dict['default']
@@ -51,22 +49,11 @@ if __name__ == '__main__':
     try:
         env = NormalizedActions(envs.env_list[env_name](render=args.render))
     except TypeError as err:
-        print('no argument render,  assumping env.render will just work')
+        print('no argument render, assumping env.render will just work')
         env = NormalizedActions(envs.env_list[env_name]())
-    if args.env == 'PendulumEnv':
-        assert env.action_space.low == -env.action_space.high, 'Action space not symmetric'
-    else:
-        assert np.any(np.abs(env.action_space.low) <= 1.) and  np.any(np.abs(env.action_space.high) <= 1.), 'Action space not normalizd'
 
-    env.reset()
+    assert np.any(np.abs(env.action_space.low) <= 1.) and  np.any(np.abs(env.action_space.high) <= 1.), 'Action space not normalizd'
 
-    env.seed(args.seed)
-    np.random.seed(args.seed)
-    random.seed(args.seed)
-    torch.manual_seed(args.seed)
-    torch.cuda.manual_seed_all(args.seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
 
     action_dim = env.action_space.shape[0]
     state_dim  = env.observation_space.shape[0]
@@ -80,37 +67,38 @@ if __name__ == '__main__':
     policy_net = PolicyNetwork(state_dim, action_dim, hidden_dim,AF=config['activation_fun']).to(device)
     model = Model(state_dim, action_dim, def_layers=[200],AF=config['activation_fun']).to(device)
 
-    state_dict_path = './data/' + config['method'] + '/' + env_name
+    state_dict_path = './data/hlt_deter/' + env_name
     mig_log = []
     for seed_dir in glob.glob(state_dict_path + '/seed_*'):
-        frame_evals = [5000, 10000, 20000, 30000, 40000, 50000]
+        seed = int(seed_dir.split('_')[-1])
+        env.reset()
+        env.seed(seed)
+        np.random.seed(seed)
+        random.seed(seed)
+        torch.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+        
+        if (args.env == 'PendulumEnv') or (args.env == 'InvertedPendulumBulletEnv'):
+            frame_evals = [1000, 2000, 3000, 4000, 5000, 
+                           6000, 7000, 8000, 9000, 10000]
+        else:
+            frame_evals = [5000, 10000, 20000, 30000, 40000, 50000]
         for _frame in frame_evals:
             policy_path = seed_dir + '/policy_{}.pt'.format(_frame)
             model_path = seed_dir + '/model_{}.pt'.format(_frame)
-            print(policy_path, model_path)
+#             print(policy_path, model_path)
             policy_net.load_state_dict(torch.load(policy_path, map_location=device))
             model.load_state_dict(torch.load(model_path, map_location=device))
 
-            # if config['method'] == 'hlt_stoch':
-            #     hybrid_policy = StochPolicyWrapper(model, policy_net,
-            #                             samples=config['trajectory_samples'],
-            #                             t_H=config['horizon'],
-            #                             lam=config['lam'])
-            if config['method'] == 'hlt_deter':
-                hybrid_policy = DetPolicyWrapper(model, policy_net,
-                                            T=config['horizon'],
-                                            lr=config['planner_lr'])
-            else:
-                raise ValueError('method not found in config')
+            hybrid_policy = DetPolicyWrapper(model, policy_net,
+                                        T=config['horizon'],
+                                        lr=config['planner_lr'])
 
             max_frames  = config['max_frames']
             max_steps   = config['max_steps']
             frame_skip  = config['frame_skip']
-
-            frame_idx   = 0
-            rewards     = []
-
-            ep_num = 0
 
             state = env.reset()
             hybrid_policy.reset()
@@ -121,12 +109,10 @@ if __name__ == '__main__':
             rho = 0.
             for step in range(max_steps):
 
-                rho += hybrid_policy.get_mode_insertion(state)
-                action = hybrid_policy(state)
+                action, _rho = hybrid_policy(state)
+                rho += _rho
                 for _ in range(frame_skip):
-                    state, reward, done, _ = env.step(action.copy())
-                episode_reward += reward
-                frame_idx += 1
+                    state, _, _, _ = env.step(action.copy())
 
                 if args.render:
                     env.render("human")
@@ -135,10 +121,9 @@ if __name__ == '__main__':
                     if done:
                         break
             mig.append(rho/step)
-            print(rho/step)
-            ep_num += 1
+            print(seed,rho/step)
 
             mig_log.append(mig)
 
-            print('savig mig log for ' + seed_dir)
-            pickle.dump(mig_log, open('./data/'+config['method']+'/'+env_name+'/mig_log.pkl', 'wb'))
+        print('savig mig log for ' + seed_dir)
+        pickle.dump(mig_log, open(state_dict_path + '/mig_log.pkl', 'wb'))
