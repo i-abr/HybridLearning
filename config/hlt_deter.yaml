@@ -20,9 +20,6 @@ PendulumEnv:
     frame_skip: 4
     max_steps: 200
     model_iter: 5
-#     horizon: 10
-#     planner_lr: 0.01
-
 
 InvertedPendulumBulletEnv:
     activation_fun: 'sin'
@@ -30,33 +27,21 @@ InvertedPendulumBulletEnv:
     frame_skip: 4
     max_steps: 200
     model_iter: 5
-#     planner_lr: 0.1
 
-InvertedPendulumEnv:
-#     activation_fun: 'sin'
+InvertedPendulumRoboschoolEnv:
+    activation_fun: 'sin'
     max_frames: 50000
     frame_skip: 4
     max_steps: 1000
-    horizon: 10
-    # model_iter: 5
-#     planner_lr: 0.001
-
-# HopperBulletEnv:
-#     max_frames: 50000
-#     max_steps: 1000
-#     frame_skip: 4
-#     planner_lr: 0.00001
-
+    horizon: 5
 
 HopperEnv:
     max_frames: 50000
     max_steps: 1000
     frame_skip: 4
-#     planner_lr: 0.00001
 
 HalfCheetahEnv:
     max_frames: 50000
     max_steps: 1000
     frame_skip: 5
     horizon: 10
-#     planner_lr: 0.00001

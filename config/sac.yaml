@@ -19,9 +19,15 @@ PendulumEnv:
     max_frames: 10000
     frame_skip: 4
     max_steps: 200
-    
-InvertedPendulumEnv:
-#     activation_fun: 'sin'
+
+InvertedPendulumBulletEnv:
+    activation_fun: 'sin'
+    max_frames: 10000
+    frame_skip: 4
+    max_steps: 200
+
+InvertedPendulumRoboschoolEnv:
+    activation_fun: 'sin'
     max_frames: 50000
     frame_skip: 4
     max_steps: 1000
@@ -30,7 +36,7 @@ HopperEnv:
     max_frames: 50000
     max_steps: 1000
     frame_skip: 1
-    
+
 HalfCheetahEnv:
     max_frames: 50000
     max_steps: 1000

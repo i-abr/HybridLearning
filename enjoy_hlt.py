@@ -23,10 +23,10 @@ from model import ModelOptimizer, Model, SARSAReplayBuffer
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--env',   type=str,   default='InvertedPendulumEnv')
+parser.add_argument('--env',   type=str,   default='InvertedPendulumRoboschoolEnv')
 parser.add_argument('--method', type=str, default='hlt_stoch')
 parser.add_argument('--frame', type=int, default=-1)
-parser.add_argument('--seed', type=int, default=666)
+parser.add_argument('--seed', type=int, default=13)
 parser.add_argument('--done_util', dest='done_util', action='store_true')
 parser.add_argument('--no_done_util', dest='done_util', action='store_false')
 parser.set_defaults(done_util=True)

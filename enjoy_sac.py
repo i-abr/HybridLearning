@@ -21,9 +21,9 @@ from sac_lib import NormalizedActions
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--env',   type=str,   default='InvertedPendulumBulletEnv')
+parser.add_argument('--env',   type=str,   default='InvertedPendulumRoboschoolEnv')
 parser.add_argument('--frame', type=int, default=-1)
-parser.add_argument('--seed', type=int, default=666)
+parser.add_argument('--seed', type=int, default=13)
 parser.add_argument('--done_util', dest='done_util', action='store_true')
 parser.add_argument('--no_done_util', dest='done_util', action='store_false')
 parser.set_defaults(done_util=True)
@@ -55,12 +55,13 @@ if __name__ == '__main__':
     except TypeError as err:
         print('no argument render,  assumping env.render will just work')
         env = NormalizedActions(envs.env_list[env_name]())
-    if args.env == 'PendulumEnv':
-        assert env.action_space.low == -env.action_space.high, 'Action space not symmetric'
-    else:
-        assert np.any(np.abs(env.action_space.low) <= 1.) and  np.any(np.abs(env.action_space.high) <= 1.), 'Action space not normalizd'
+    assert np.any(np.abs(env.action_space.low) <= 1.) and  np.any(np.abs(env.action_space.high) <= 1.), 'Action space not normalizd'
+    if args.render:
+        try:
+            env.render('human') # needed for InvertedDoublePendulumBulletEnv
+        except:
+            print('render not needed')
     if args.record:
-
         env = gym.wrappers.Monitor(env, './data/vid/sac/{}-{}'.format(env_name, args.frame), force=True)
     env.reset()
 
@@ -85,7 +86,7 @@ if __name__ == '__main__':
 
     policy_net = PolicyNetwork(state_dim, action_dim, hidden_dim,AF=config['activation_fun']).to(device)
 
-    state_dict_path = './data/sac/' + env_name + '/seed_{}/'.format(args.seed)
+    state_dict_path = './data/sac__/' + env_name + '/seed_{}/'.format(args.seed)
 
     if args.frame == -1:
         test_frame = 'final'
@@ -115,7 +116,8 @@ if __name__ == '__main__':
         frame_idx += 1
 
         if args.render:
-            env.render("rgb_array", width=320*2, height=240*2)
+            # env.render("rgb_array", width=320*2, height=240*2)
+            env.render(mode="human")
 
         if args.done_util:
             if done:

@@ -22,7 +22,7 @@ from mpc_lib import ModelBasedDeterControl, PathIntegral
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--env',   type=str,   default='InvertedPendulumEnv')
+parser.add_argument('--env',   type=str,   default='InvertedPendulumRoboschoolEnv')
 parser.add_argument('--method', type=str, default='hlt_stoch')
 parser.add_argument('--seed', type=int, default=666)
 parser.add_argument('--done_util', dest='done_util', action='store_true')
@@ -37,7 +37,7 @@ parser.set_defaults(render=False)
 
 args = parser.parse_args()
 print(args)
-    
+
 if __name__ == '__main__':
     base_method = args.method[:3]
     if base_method == 'sac__':
@@ -61,7 +61,7 @@ if __name__ == '__main__':
     except TypeError as err:
         print('no argument render,  assumping env.render will just work')
         env = NormalizedActions(envs.env_list[env_name]())
-        
+
     assert np.any(np.abs(env.action_space.low) <= 1.) and  np.any(np.abs(env.action_space.high) <= 1.), 'Action space not normalizd'
     if args.render:
         try:
@@ -171,9 +171,9 @@ if __name__ == '__main__':
                 next_action, _ = planner(next_state)
                 model_replay_buffer.push(state, action, reward_scale * reward, next_state, next_action, done)
                 if args.method == 'mpc_deter':
-                    print(step,next_action)
+                    # print(step,next_action)
                     next_action += np.random.normal(0., 1.0*(0.999**(frame_idx+1)), size=(action_dim,))
-                    print(step,next_action)
+                    # print(step,next_action)
                 if len(model_replay_buffer) > batch_size:
                     model_optim.update_model(batch_size, mini_iter=config['model_iter'])
             elif base_method == 'hlt':

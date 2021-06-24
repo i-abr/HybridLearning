@@ -20,10 +20,10 @@ from model import ModelOptimizer, Model, SARSAReplayBuffer
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--env',   type=str,   default='InvertedPendulumBulletEnv')
+parser.add_argument('--env',   type=str,   default='InvertedPendulumRoboschoolEnv')
 parser.add_argument('--method', type=str, default='mpc_stoch')
 parser.add_argument('--frame', type=int, default=-1)
-parser.add_argument('--seed', type=int, default=666)
+parser.add_argument('--seed', type=int, default=13)
 parser.add_argument('--done_util', dest='done_util', action='store_true')
 parser.add_argument('--no_done_util', dest='done_util', action='store_false')
 parser.set_defaults(done_util=True)
@@ -32,7 +32,7 @@ parser.add_argument('--no-log', dest='log', action='store_false')
 parser.set_defaults(log=False)
 parser.add_argument('--render', dest='render', action='store_true')
 parser.add_argument('--no_render', dest='render', action='store_false')
-parser.set_defaults(render=False)
+parser.set_defaults(render=True)
 parser.add_argument('--record', dest='record', action='store_true')
 parser.add_argument('--no_record', dest='record', action='store_false')
 parser.set_defaults(record=False)
@@ -42,8 +42,12 @@ args = parser.parse_args()
 import pybullet as pb
 
 if __name__ == '__main__':
+    base_method = args.method[:3]
+    if args.method[4:] == 'deter':
+        config_path = './config/hlt_deter.yaml'
+    else:
+        config_path = './config/hlt_stoch.yaml'
 
-    config_path = './config/' + args.method + '.yaml'
     with open(config_path, 'r') as f:
         config_dict = yaml.safe_load(f)
         config = config_dict['default']
@@ -58,13 +62,10 @@ if __name__ == '__main__':
     except TypeError as err:
         print('no argument render,  assumping env.render will just work')
         env = NormalizedActions(envs.env_list[env_name]())
-    if args.env == 'PendulumEnv':
-        assert env.action_space.low == -env.action_space.high, 'Action space not symmetric'
-    else:
-        assert np.any(np.abs(env.action_space.low) <= 1.) and  np.any(np.abs(env.action_space.high) <= 1.), 'Action space not normalizd'
+    assert np.any(np.abs(env.action_space.low) <= 1.) and  np.any(np.abs(env.action_space.high) <= 1.), 'Action space not normalizd'
     if args.render:
         try:
-            env.render() # needed for InvertedDoublePendulumBulletEnv
+            env.render('human') # needed for InvertedDoublePendulumBulletEnv
         except:
             print('render not needed')
 
@@ -101,12 +102,12 @@ if __name__ == '__main__':
 
     model.load_state_dict(torch.load(state_dict_path+'model_{}.pt'.format(test_frame), map_location=device))
 
-    if config['method'] == 'mpc_stoch':
+    if args.method == 'mpc_stoch':
         planner     = PathIntegral(model,
                                    samples=config['trajectory_samples'],
                                    t_H=config['horizon'],
                                    lam=config['lam'])
-    elif config['method'] == 'mpc_deter':
+    elif args.method == 'mpc_deter':
         planner     = ModelBasedDeterControl(model, T=config['horizon'])
     else:
         raise ValueError('method not found in config')
@@ -124,7 +125,7 @@ if __name__ == '__main__':
     episode_reward = 0
     done = False
     for step in range(max_steps):
-        action, _rho = planner(next_state)
+        action, _rho = planner(state)
         for _ in range(frame_skip):
             state, reward, done, _ = env.step(action.copy())
             if done: break

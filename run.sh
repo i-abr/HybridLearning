@@ -1,6 +1,6 @@
 #!/bin/sh
 
-for env in 'PendulumEnv' 'InvertedPendulumEnv' 'HopperEnv'  'HalfCheetahEnv' 
+for env in 'PendulumEnv' 'InvertedPendulumRoboschoolEnv' 'HopperEnv'  'HalfCheetahEnv'
 # for env in 'InvertedPendulumBulletEnv'
 do
     for i in $(seq 13 100 950)

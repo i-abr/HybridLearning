@@ -4,11 +4,11 @@ from gym.envs import classic_control, box2d, mujoco
 # from pybullet_envs.deep_mimic.gym_env import HumanoidDeepMimicBackflipBulletEnv
 # from pybullet_envs.bullet.minitaur_gym_env import MinitaurBulletEnv
 # from rex_gym.envs.gym.galloping_env import RexReactiveEnv
+from roboschool.gym_pendulums import RoboschoolInvertedPendulumSwingup
 
 env_list = {
     'InvertedPendulumBulletEnv' : gym_pendulum_envs.InvertedPendulumSwingupBulletEnv,
-    'InvertedPendulumEnv' : mujoco.InvertedPendulumEnv,
-    'InvertedPendulumEnv_sin' : mujoco.InvertedPendulumEnv,
+    'InvertedPendulumRoboschoolEnv' : RoboschoolInvertedPendulumSwingup,
     'HalfCheetahEnv' : mujoco.HalfCheetahEnv,
     # 'HalfCheetahBulletEnv' : gym_locomotion_envs.HalfCheetahBulletEnv,
     # 'HopperBulletEnv' : gym_locomotion_envs.HopperBulletEnv,
