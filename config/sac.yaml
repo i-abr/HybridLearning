@@ -7,7 +7,7 @@ default:
     policy_lr: !!float 3e-3
     value_lr: !!float 3e-4
     soft_q_lr: !!float 3e-4
-#     reward_scale: 1.0
+    reward_scale: 1.0
 #     horizon: 5
 #     model_iter: 5
 #     trajectory_samples: 60
@@ -19,6 +19,18 @@ PendulumEnv:
     max_frames: 10000
     frame_skip: 4
     max_steps: 200
+
+AcrobotEnv:
+    activation_fun: 'ReLU'
+    max_frames: 10000
+    frame_skip: 1
+    max_steps: 500
+
+PendubotEnv:
+    activation_fun: 'ReLU'
+    max_frames: 10000
+    frame_skip: 2
+    max_steps: 500
 
 InvertedPendulumBulletEnv:
     activation_fun: 'sin'

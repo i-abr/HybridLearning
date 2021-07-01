@@ -5,6 +5,9 @@ from numpy import sin, cos, pi
 from gym import core, spaces
 from gym.utils import seeding
 
+from gym.envs import classic_control # alp mod
+from os import path # alp mod
+
 __copyright__ = "Copyright 2013, RLPy http://acl.mit.edu/RLPy"
 __credits__ = ["Alborz Geramifard", "Robert H. Klein", "Christoph Dann",
                "William Dabney", "Jonathan P. How"]
@@ -16,9 +19,9 @@ __author__ = "Christoph Dann <cdann@cdann.de>"
 
 
 '''
-modified to make action space continuous 
+modified to make action space continuous
 '''
-    
+
 class ContinuousAcrobotEnv(core.Env):
 
     """
@@ -91,11 +94,12 @@ class ContinuousAcrobotEnv(core.Env):
 
     def __init__(self):
         self.viewer = None
+        self.custom_viewer = None
         high = np.array([1.0, 1.0, 1.0, 1.0, self.MAX_VEL_1, self.MAX_VEL_2], dtype=np.float32)
         low = -high
         self.observation_space = spaces.Box(low=low, high=high, dtype=np.float32)
 #         self.action_space = spaces.Discrete(3) # alp mod
-        self.action_space = spaces.Box(low=np.ones(1)*-1., 
+        self.action_space = spaces.Box(low=np.ones(1)*-1.,
                                        high=np.ones(1), dtype=np.float32) # alp mod
         self.state = None
         self.seed()
@@ -105,14 +109,15 @@ class ContinuousAcrobotEnv(core.Env):
         return [seed]
 
     def reset(self):
-        self.state = self.np_random.uniform(low=-0.1, high=0.1, size=(4,))
+        # self.state = self.np_random.uniform(low=-0.1, high=0.1, size=(4,)) # alp mod
+        self.state = self.np_random.uniform(low=-0.3, high=0.3, size=(4,)) # alp mod
         return self._get_ob()
 
     def step(self, a):
         s = self.state
 #         torque = self.AVAIL_TORQUE[a] # alp mod
         torque = np.clip(a, -self.MAX_TORQUE, self.MAX_TORQUE) # alp mod
-    
+
         # Add noise to the force action
         if self.torque_noise_max > 0:
             torque += self.np_random.uniform(-self.torque_noise_max, self.torque_noise_max)
@@ -146,7 +151,7 @@ class ContinuousAcrobotEnv(core.Env):
 
     def _terminal(self):
         s = self.state
-        return bool(-cos(s[0]) - cos(s[1] + s[0]) > 1.5)# alp mod
+        return bool(-cos(s[0]) - cos(s[1] + s[0]) > 1.55)# alp mod
 #         return bool(-cos(s[0]) - cos(s[1] + s[0]) > 1.)# alp mod
 
     def _dsdt(self, s_augmented, t):
@@ -193,6 +198,13 @@ class ContinuousAcrobotEnv(core.Env):
             self.viewer = rendering.Viewer(500,500)
             bound = self.LINK_LENGTH_1 + self.LINK_LENGTH_2 + 0.2  # 2.2 for default
             self.viewer.set_bounds(-bound,bound,-bound,bound)
+        if self.custom_viewer is None:
+            # alp try to add arrow
+            fname = path.join(path.dirname(classic_control.__file__), "assets/clockwise.png")
+            self.img = rendering.Image(fname, 0.25, 0.25)
+            self.imgtrans = rendering.Transform()
+            self.img.add_attr(self.imgtrans)
+            self.custom_viewer = True
 
         if s is None: return None
 
@@ -216,6 +228,10 @@ class ContinuousAcrobotEnv(core.Env):
             circ = self.viewer.draw_circle(.1)
             circ.set_color(.8, .8, 0)
             circ.add_attr(jtransform)
+
+        # alp try to add arrow
+        self.viewer.add_onetime(self.img)
+        self.imgtrans.scale = (-s[-1] / 2, np.abs(s[-1]) / 2)
 
         return self.viewer.render(return_rgb_array = mode=='rgb_array')
 

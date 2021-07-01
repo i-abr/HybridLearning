@@ -20,6 +20,20 @@ PendulumEnv:
     frame_skip: 4
     max_steps: 200
 
+AcrobotEnv:
+    activation_fun: 'ReLU'
+    max_frames: 10000
+    frame_skip: 4
+    max_steps: 500
+    model_iter: 5
+
+PendubotEnv:
+    activation_fun: 'ReLU'
+    max_frames: 10000
+    frame_skip: 4
+    max_steps: 500
+    model_iter: 5
+
 InvertedPendulumBulletEnv:
     activation_fun: 'sin'
     max_frames: 10000
