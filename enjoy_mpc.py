@@ -20,7 +20,7 @@ from model import ModelOptimizer, Model, SARSAReplayBuffer
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--env',   type=str,   default='InvertedPendulumRoboschoolEnv')
+parser.add_argument('--env',   type=str,   default='InvertedPendulumEnv')
 parser.add_argument('--method', type=str, default='mpc_stoch')
 parser.add_argument('--frame', type=int, default=-1)
 parser.add_argument('--seed', type=int, default=13)
@@ -60,7 +60,7 @@ if __name__ == '__main__':
     try:
         env = NormalizedActions(envs.env_list[env_name](render=args.render))
     except TypeError as err:
-        print('no argument render,  assumping env.render will just work')
+        print('no argument render,  assuming env.render will just work')
         env = NormalizedActions(envs.env_list[env_name]())
     assert np.any(np.abs(env.action_space.low) <= 1.) and  np.any(np.abs(env.action_space.high) <= 1.), 'Action space not normalizd'
     if args.render:

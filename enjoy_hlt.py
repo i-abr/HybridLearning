@@ -23,7 +23,7 @@ from model import ModelOptimizer, Model, SARSAReplayBuffer
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--env',   type=str,   default='InvertedPendulumRoboschoolEnv')
+parser.add_argument('--env',   type=str,   default='InvertedPendulumEnv')
 parser.add_argument('--method', type=str, default='hlt_stoch')
 parser.add_argument('--frame', type=int, default=-1)
 parser.add_argument('--seed', type=int, default=13)
@@ -56,7 +56,7 @@ if __name__ == '__main__':
     try:
         env = NormalizedActions(envs.env_list[env_name](render=args.render))
     except TypeError as err:
-        print('no argument render,  assumping env.render will just work')
+        print('no argument render,  assuming env.render will just work')
         env = NormalizedActions(envs.env_list[env_name]())
 #     if args.env == 'PendulumEnv':
 #         assert env.action_space.low == -env.action_space.high, 'Action space not symmetric'
@@ -88,7 +88,7 @@ if __name__ == '__main__':
     policy_net = PolicyNetwork(state_dim, action_dim, hidden_dim,AF=config['activation_fun']).to(device)
     model = Model(state_dim, action_dim, def_layers=[200],AF=config['activation_fun']).to(device)
 
-    state_dict_path = './data/' + config['method'] + '/' + env_name + '/seed_{}/'.format(args.seed)
+    state_dict_path = './data/' + args.method + '/' + env_name + '/seed_{}/'.format(args.seed)
 
     if args.frame == -1:
         test_frame = 'final'

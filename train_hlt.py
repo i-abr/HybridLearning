@@ -22,7 +22,7 @@ from mpc_lib import ModelBasedDeterControl, PathIntegral
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--env',   type=str,   default='InvertedPendulumRoboschoolEnv')
+parser.add_argument('--env',   type=str,   default='InvertedPendulumEnv')
 parser.add_argument('--method', type=str, default='hlt_stoch')
 parser.add_argument('--seed', type=int, default=666)
 parser.add_argument('--done_util', dest='done_util', action='store_true')
@@ -40,7 +40,7 @@ print(args)
 
 if __name__ == '__main__':
     base_method = args.method[:3]
-    if base_method == 'sac__':
+    if args.method == 'sac__':
         config_path = './config/sac.yaml'
     elif args.method[4:] == 'deter':
         config_path = './config/hlt_deter.yaml'
@@ -59,7 +59,7 @@ if __name__ == '__main__':
     try:
         env = NormalizedActions(envs.env_list[env_name](render=args.render))
     except TypeError as err:
-        print('no argument render,  assumping env.render will just work')
+        print('no argument render,  assuming env.render will just work')
         env = NormalizedActions(envs.env_list[env_name]())
 
     assert np.any(np.abs(env.action_space.low) <= 1.) and  np.any(np.abs(env.action_space.high) <= 1.), 'Action space not normalizd'
@@ -145,7 +145,7 @@ if __name__ == '__main__':
     batch_size  = 128
 
     ep_num = 0
-    while frame_idx < max_frames:
+    while (frame_idx < max_frames):
         state = env.reset()
         if base_method == 'sac':
             action = policy_net.get_action(state)

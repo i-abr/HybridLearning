@@ -34,24 +34,27 @@ class StochPolicyWrapper(object):
             s = s0.repeat(self.samples, 1)
 
             mu, log_std = self.policy(s)
-            sk, da, log_prob = [], [], []
+#             sk, da, log_prob = [], [], []
+            sk = torch.zeros(self.t_H,self.samples).to(self.device)
+            da = torch.zeros(self.t_H,self.samples,self.num_actions).to(self.device)
+            log_prob = torch.zeros(self.t_H,self.samples).to(self.device)
             for t in range(self.t_H):
                 pi = Normal(mu, log_std.exp())
                 v = torch.tanh(pi.sample())
                 da_t = v - self.a[t].expand_as(v)
-                log_prob.append(pi.log_prob(da_t).sum(1))
+                log_prob[t] = pi.log_prob(da_t).sum(1)
 #                 log_prob.append(pi.log_prob(v).sum(1))
                 # log_prob.append(pi.log_prob(self.a[t].expand_as(v)).sum(1))  # should this be da? alp
                 # log_prob.append(pi.log_prob(v).sum(1))
-                da.append(da_t)
+                da[t] = da_t
                 # da.append(v)
                 s, rew = self.model.step(s, v)
                 mu, log_std = self.policy(s)
-                sk.append(rew.squeeze())
+                sk[t] = rew.squeeze()
 
-            sk = torch.stack(sk)
+#             sk = torch.stack(sk)
             sk = torch.cumsum(sk.flip(0), 0).flip(0)
-            log_prob = torch.stack(log_prob)
+#             log_prob = torch.stack(log_prob)
 
             sk = sk + self.lam*log_prob
             # sk = sk - torch.min(sk, dim=1, keepdim=True)[0]

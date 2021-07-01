@@ -5,10 +5,12 @@ from gym.envs import classic_control, box2d, mujoco
 # from pybullet_envs.bullet.minitaur_gym_env import MinitaurBulletEnv
 # from rex_gym.envs.gym.galloping_env import RexReactiveEnv
 from roboschool.gym_pendulums import RoboschoolInvertedPendulumSwingup
+from .continuous_acrobot import ContinuousAcrobotEnv
 
 env_list = {
     'InvertedPendulumBulletEnv' : gym_pendulum_envs.InvertedPendulumSwingupBulletEnv,
     'InvertedPendulumRoboschoolEnv' : RoboschoolInvertedPendulumSwingup,
+    'InvertedPendulumEnv' : RoboschoolInvertedPendulumSwingup,
     'HalfCheetahEnv' : mujoco.HalfCheetahEnv,
     # 'HalfCheetahBulletEnv' : gym_locomotion_envs.HalfCheetahBulletEnv,
     # 'HopperBulletEnv' : gym_locomotion_envs.HopperBulletEnv,
@@ -19,6 +21,7 @@ env_list = {
     'PendulumEnv' : classic_control.PendulumEnv,
 #     'Walker2DEnv' : gym_locomotion_envs.Walker2DBulletEnv
     # 'RexEnv' : RexReactiveEnv
+    'AcrobotEnv' : ContinuousAcrobotEnv,
 }
 
 def getlist():

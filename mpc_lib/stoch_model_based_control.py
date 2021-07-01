@@ -33,20 +33,23 @@ class PathIntegral(object):
             s0 = torch.FloatTensor(state).unsqueeze(0).to(self.device)
             s = s0.repeat(self.samples, 1)
 
-            sk, da, log_prob = [], [], []
+#             sk, da, log_prob = [], [], []
+            sk = torch.zeros(self.t_H,self.samples).to(self.device)
+            da = torch.zeros(self.t_H,self.samples,self.num_actions).to(self.device)
+            log_prob = torch.zeros(self.t_H,self.samples).to(self.device)
             eta = torch.zeros(1).to(self.device)
             for t in range(self.t_H):
                 eps = self.eps.sample()
                 eta = 0.5 * eta + (1-0.5) * eps
-                log_prob.append(self.eps.log_prob(eta).sum(1))
-                da.append(eta)
+                log_prob[t] = self.eps.log_prob(eta).sum(1)
+                da[t] = eta
                 v = self.a[t].expand_as(eta) + eta
                 s, rew = self.model.step(s, v)
-                sk.append(rew.squeeze())
+                sk[t] = rew.squeeze()
 
-            sk = torch.stack(sk)
+#             sk = torch.stack(sk)
             sk = torch.cumsum(sk.flip(0), 0).flip(0)
-            log_prob = torch.stack(log_prob)
+#             log_prob = torch.stack(log_prob)
 
             # sk = sk.div(self.lam) + log_prob # doing this twice? (alp commented out 5/10)
             sk = sk + self.lam*log_prob # copied from stoch_wrapper.py (alp added 5/10)
