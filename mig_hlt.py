@@ -7,6 +7,7 @@ import sys
 import os
 import yaml
 import glob
+
 # local imports
 import envs
 import gym
@@ -32,7 +33,7 @@ parser.add_argument('--no_render', dest='render', action='store_false')
 parser.set_defaults(render=False)
 
 args = parser.parse_args()
-
+print(args)
 
 if __name__ == '__main__':
 
@@ -49,7 +50,7 @@ if __name__ == '__main__':
     try:
         env = NormalizedActions(envs.env_list[env_name](render=args.render))
     except TypeError as err:
-        print('no argument render, assumping env.render will just work')
+        print('no argument render, assuming env.render will just work')
         env = NormalizedActions(envs.env_list[env_name]())
 
     assert np.any(np.abs(env.action_space.low) <= 1.) and  np.any(np.abs(env.action_space.high) <= 1.), 'Action space not normalizd'
@@ -64,9 +65,6 @@ if __name__ == '__main__':
         device  = 'cuda:0'
         print('Using GPU Accel')
 
-    policy_net = PolicyNetwork(state_dim, action_dim, hidden_dim,AF=config['activation_fun']).to(device)
-    model = Model(state_dim, action_dim, def_layers=[200],AF=config['activation_fun']).to(device)
-
     state_dict_path = './data/hlt_deter/' + env_name
     mig_log = []
     for seed_dir in glob.glob(state_dict_path + '/seed_*'):
@@ -79,51 +77,68 @@ if __name__ == '__main__':
         torch.cuda.manual_seed_all(seed)
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
-        
-        if (args.env == 'PendulumEnv') or (args.env == 'InvertedPendulumBulletEnv'):
-            frame_evals = [1000, 2000, 3000, 4000, 5000, 
-                           6000, 7000, 8000, 9000, 10000]
-        else:
-            frame_evals = [5000, 10000, 20000, 30000, 40000, 50000]
-        for _frame in frame_evals:
-            policy_path = seed_dir + '/policy_{}.pt'.format(_frame)
-            model_path = seed_dir + '/model_{}.pt'.format(_frame)
-#             print(policy_path, model_path)
-            policy_net.load_state_dict(torch.load(policy_path, map_location=device))
-            model.load_state_dict(torch.load(model_path, map_location=device))
 
-            hybrid_policy = DetPolicyWrapper(model, policy_net,
-                                        T=config['horizon'],
-                                        lr=config['planner_lr'])
+        model_paths = glob.glob(seed_dir +'/model_*')
+        policy_paths = glob.glob(seed_dir +'/policy_*')
+        mig = []
+        for model_path, policy_path in zip(model_paths, policy_paths):
+            final = False
+            try:
+                frame_idx = int(policy_path.split('policy_')[-1].split('.pt')[0])
+            except:
+                final = True
+            if not final:
+                policy_net = PolicyNetwork(state_dim, action_dim,
+                                           hidden_dim,AF=config['activation_fun']).to(device)
+                model = Model(state_dim, action_dim,
+                              def_layers=[200],AF=config['activation_fun']).to(device)
 
-            max_frames  = config['max_frames']
-            max_steps   = config['max_steps']
-            frame_skip  = config['frame_skip']
+                policy_net.load_state_dict(torch.load(policy_path, map_location=device))
+                model.load_state_dict(torch.load(model_path, map_location=device))
 
-            state = env.reset()
-            hybrid_policy.reset()
+                hybrid_policy = DetPolicyWrapper(model, policy_net,
+                                            T=config['horizon'],
+                                            lr=config['planner_lr'])
 
-            episode_reward = 0
-            done = False
-            mig = []
-            rho = 0.
-            for step in range(max_steps):
+                max_frames  = config['max_frames']
+                max_steps   = config['max_steps']
+                frame_skip  = config['frame_skip']
 
-                action, _rho = hybrid_policy(state)
-                rho += _rho
-                for _ in range(frame_skip):
-                    state, _, _, _ = env.step(action.copy())
+                mig_frame = []
+                mig_frame.append(frame_idx)
+                for _ in range(10):
+                    state = env.reset()
+                    hybrid_policy.reset()
 
-                if args.render:
-                    env.render("human")
+                    action,_rho = hybrid_policy(state)
 
-                if args.done_util:
-                    if done:
-                        break
-            mig.append(rho/step)
-            print(seed,rho/step)
+                    episode_reward = 0
+                    done = False
+                    rho = 0.
+                    for step in range(max_steps):
+                        rho += _rho
+                        for _ in range(frame_skip):
+                            next_state, reward, done, _ = env.step(action.copy())
 
-            mig_log.append(mig)
+                        next_action,_ = hybrid_policy(next_state)
 
-        print('savig mig log for ' + seed_dir)
+                        state = next_state
+                        action = next_action
+
+                        if args.render:
+                            env.render("human")
+
+                        if args.done_util:
+                            if done:
+                                break
+                    mig_frame.append(rho/step)
+                    print(seed,frame_idx,rho/step)
+                mig.append(mig_frame)
+                print(seed, frame_idx, np.mean(mig_frame[1:]),'avg of 10 tests')
+
+        log = sorted(mig, key=lambda x: x[0])
+        log = np.array(log)
+        mig_log.append(log)
+
+        print('saving mig log for ' + seed_dir)
         pickle.dump(mig_log, open(state_dict_path + '/mig_log.pkl', 'wb'))

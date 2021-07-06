@@ -11,11 +11,11 @@ default:
     reward_scale: 1.0
     horizon: 5
     model_iter: 5
-    lam: 0.1
+#     lam: 0.1
     activation_fun: 'ReLU'
 
 PendulumEnv:
-    activation_fun: 'sin'
+    activation_fun: 'ReLU'
     max_frames: 10000
     frame_skip: 4
     max_steps: 200
@@ -43,19 +43,27 @@ InvertedPendulumBulletEnv:
     model_iter: 5
 
 InvertedPendulumRoboschoolEnv:
-    activation_fun: 'sin'
+    activation_fun: 'ReLU'
     max_frames: 50000
     frame_skip: 4
     max_steps: 1000
     horizon: 5
 
 HopperEnv:
+    activation_fun: 'ReLU'
     max_frames: 50000
     max_steps: 1000
     frame_skip: 4
 
 HalfCheetahEnv:
+    activation_fun: 'ReLU'
     max_frames: 50000
     max_steps: 1000
     frame_skip: 5
     horizon: 10
+
+PusherEnv:
+    activation_fun: 'ReLU'
+    max_frames: 50000
+    max_steps: 100
+    frame_skip: 2

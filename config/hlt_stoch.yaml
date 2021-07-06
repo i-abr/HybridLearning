@@ -15,10 +15,11 @@ default:
     activation_fun: 'ReLU'
 
 PendulumEnv:
-    activation_fun: 'sin'
+    activation_fun: 'ReLU'
     max_frames: 10000
     frame_skip: 4
     max_steps: 200
+    trajectory_samples: 60
 
 AcrobotEnv:
     activation_fun: 'ReLU'
@@ -43,21 +44,34 @@ InvertedPendulumBulletEnv:
     model_iter: 5
 
 InvertedPendulumRoboschoolEnv:
-    activation_fun: 'sin'
+    activation_fun: 'ReLU'
     max_frames: 50000
     frame_skip: 4
     max_steps: 1000
     horizon: 5
+    lam: 0.1
+    trajectory_samples: 60
 
 HopperEnv:
     max_frames: 50000
     max_steps: 1000
     frame_skip: 4
     lam: 0.2
+    trajectory_samples: 60
 
 HalfCheetahEnv:
     max_frames: 50000
     max_steps: 1000
     frame_skip: 1
     lam: 0.2
+    horizon: 10
+    trajectory_samples: 60
+
+PusherEnv:
+    activation_fun: 'ReLU'
+    max_frames: 50000
+    max_steps: 100
+    frame_skip: 2
+    lam: 0.2
+    trajectory_samples: 60
     horizon: 10

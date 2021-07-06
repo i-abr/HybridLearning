@@ -4,3 +4,4 @@ local/*
 *.ipynb_checkpoints
 cleanup.sh
 *.bat
+MUJOCO*
