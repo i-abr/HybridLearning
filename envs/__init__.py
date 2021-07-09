@@ -7,6 +7,7 @@ from gym.envs import classic_control, box2d, mujoco
 from roboschool.gym_pendulums import RoboschoolInvertedPendulumSwingup
 from .continuous_acrobot import ContinuousAcrobotEnv
 from .continuous_pendubot import ContinuousPendubotEnv
+from .gym_monitor_nodone import Monitor
 
 env_list = {
     'InvertedPendulumRoboschoolEnv' : RoboschoolInvertedPendulumSwingup,

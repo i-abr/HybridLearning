@@ -68,4 +68,4 @@ class StochPolicyWrapper(object):
             for t in range(self.t_H):
                 self.a[t] = self.a[t] + torch.mv(da[t].T, w[t])
                 # self.a[t] = torch.mv(da[t].T, w[t])
-            return self.a[0].cpu().clone().numpy(), None
+            return self.a[0].cpu().clone().numpy(), da[0].cpu().clone().numpy()

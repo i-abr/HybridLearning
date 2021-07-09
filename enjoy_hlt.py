@@ -11,6 +11,7 @@ import yaml
 import envs
 import gym
 from gym import wrappers
+from envs import Monitor
 
 import torch
 from sac_lib import SoftActorCritic
@@ -23,13 +24,13 @@ from model import ModelOptimizer, Model, SARSAReplayBuffer
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--env',   type=str,   default='InvertedPendulumEnv')
+parser.add_argument('--env',   type=str,   default='HopperEnv')
 parser.add_argument('--method', type=str, default='hlt_stoch')
 parser.add_argument('--frame', type=int, default=-1)
 parser.add_argument('--seed', type=int, default=13)
 parser.add_argument('--done_util', dest='done_util', action='store_true')
 parser.add_argument('--no_done_util', dest='done_util', action='store_false')
-parser.set_defaults(done_util=True)
+parser.set_defaults(done_util=False)
 parser.add_argument('--render', dest='render', action='store_true')
 parser.add_argument('--no_render', dest='render', action='store_false')
 parser.set_defaults(render=True)
@@ -63,8 +64,16 @@ if __name__ == '__main__':
 #     else:
     assert np.any(np.abs(env.action_space.low) <= 1.) and  np.any(np.abs(env.action_space.high) <= 1.), 'Action space not normalizd'
     if args.record:
-        env = gym.wrappers.Monitor(env, './data/vid/hlt/{}-{}'.format(env_name, args.frame), force=True)
-    env.reset()
+        if args.render:
+            raise ValueError('cannot record while rendering, valid options are --render --no_record OR --no_record --render')
+        video_path = './data/vid/hlt'
+        if os.path.exists(video_path) == False:
+            os.makedirs(video_path)
+        if args.done_util:
+            env = gym.wrappers.Monitor(env, video_path+'/{}-{}'.format(env_name, args.frame), force=True)
+        else:
+            env = Monitor(env, video_path+'/{}-{}'.format(env_name, args.frame), force=True)
+        env.reset()
 
     # pb.configureDebugVisualizer(pb.STATE_LOGGING_VIDEO_MP4)
 
@@ -114,10 +123,6 @@ if __name__ == '__main__':
     max_steps   = config['max_steps']
     frame_skip  = config['frame_skip']
 
-    frame_idx   = 0
-    rewards     = []
-
-    ep_num = 0
     state = env.reset()
     hybrid_policy.reset()
 
@@ -127,9 +132,9 @@ if __name__ == '__main__':
         action,_ = hybrid_policy(state)
         for _ in range(frame_skip):
             state, reward, done, _ = env.step(action.copy())
-            if done: break
+            if args.done_util:
+                if done: break
         episode_reward += reward
-        frame_idx += 1
 
         if args.render:
             try:
@@ -141,7 +146,6 @@ if __name__ == '__main__':
         if args.done_util:
             if done:
                 break
-    rewards.append([frame_idx, episode_reward])
-    ep_num += 1
-    print(episode_reward)
+    # print(episode_reward)
+    print(step)
     env.close()

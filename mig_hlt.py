@@ -67,7 +67,14 @@ if __name__ == '__main__':
 
     state_dict_path = './data/hlt_deter/' + env_name
     mig_log = []
-    for seed_dir in glob.glob(state_dict_path + '/seed_*'):
+    if env_name ==  'InvertedPendulumRoboschoolEnv':
+        temp_list = ['./data/hlt_deter/InvertedPendulumRoboschoolEnv/seed_713',
+                     './data/hlt_deter/InvertedPendulumRoboschoolEnv/seed_913',
+                     './data/hlt_deter/InvertedPendulumRoboschoolEnv/seed_813']
+    else:
+        temp_list = glob.glob(state_dict_path + '/seed_*')
+    for seed_dir in temp_list:
+    # for seed_dir in glob.glob(state_dict_path + '/seed_*'):
         seed = int(seed_dir.split('_')[-1])
         env.reset()
         env.seed(seed)
@@ -120,7 +127,7 @@ if __name__ == '__main__':
                         for _ in range(frame_skip):
                             next_state, reward, done, _ = env.step(action.copy())
 
-                        next_action,_ = hybrid_policy(next_state)
+                        next_action,_rho = hybrid_policy(next_state)
 
                         state = next_state
                         action = next_action
@@ -132,7 +139,7 @@ if __name__ == '__main__':
                             if done:
                                 break
                     mig_frame.append(rho/step)
-                    print(seed,frame_idx,rho/step)
+                    # print(seed,frame_idx,rho/step)
                 mig.append(mig_frame)
                 print(seed, frame_idx, np.mean(mig_frame[1:]),'avg of 10 tests')
 

@@ -5,3 +5,4 @@ local/*
 cleanup.sh
 *.bat
 MUJOCO*
+data/vid/*
